@@ -18,17 +18,17 @@ eval1 (Do x (Op l v (y :. c1)) c2) = return $ Op l v (y :. Do x c1 c2)
 eval1 (Do x (Sc l v (y :. c1) (z :. c2)) c3) = return $ Sc l v (y :. c1) (z :. Do x c2 c3)
 eval1 (Do x c1 c2) = do c1' <- eval1 c1; return $ Do x c1' c2
 
-eval1 (Handle h (Return v)) = return $ let (x, cr) = hreturn h in
+eval1 (Handle h@(Vhandler h') (Return v)) = return $ let (x, cr) = hreturn h' in
   shiftC (-1) $ subst cr [(shiftV 1 v, 0)]
-eval1 (Handle h (Op l v (y :. c1))) = return $ case hop h l of
+eval1 (Handle h@(Vhandler h') (Op l v (y :. c1))) = return $ case hop h' l of
   Just (x, k, c) -> shiftC (-2) $ subst c [ (shiftV 2 v, 1)
                                           , (shiftV 2 $ Lam y (Handle h c1), 0) ]
   Nothing -> Op l v (y :. Handle h c1)
-eval1 (Handle h (Sc l v (y :. c1) (z :. c2))) = return $ case hsc h l of
+eval1 (Handle h@(Vhandler h') (Sc l v (y :. c1) (z :. c2))) = return $ case hsc h' l of
   Just (x, p, k, c) -> shiftC (-3) $ subst c [ (shiftV 3 v, 2)
                                              , (shiftV 3 $ Lam y (Handle h c1), 1)
                                              , (shiftV 3 $ Lam z (Handle h c2), 0) ]
-  Nothing -> case hfwd h of
+  Nothing -> case hfwd h' of
     (f, p, k, c) -> shiftC (-3) $ subst c
       [ (shiftV 3 $ Lam y (Handle h c1), 1)
       , (shiftV 3 $ Lam z (Handle h c2), 0)
@@ -107,7 +107,8 @@ mapC fc fv c = case c of
   Return v -> Return (fv v)
   Op l v (y :. c) -> Op l (fv v) (y :. fc c)
   Sc l v (y :. c1) (z :. c2) -> Sc l (fv v) (y :. fc c1) (z :. fc c2)
-  Handle h c -> Handle (mapH fc h) (fc c)
+  Handle (Vhandler h) c -> Handle (Vhandler $ mapH fc h) (fc c)
+  Handle _ _ -> undefined
   Do x c1 c2 -> Do x (fc c1) (fc c2)
   App v1 v2 -> App (fv v1) (fv v2)
   Let x v c  -> Let x (fv v) (fc c)
@@ -164,13 +165,14 @@ mapV fc fv v = case v of
   Vint n -> Vint n
   Vstr s -> Vstr s
   Vchar c -> Vchar c
+  Vhandler h -> Vhandler (mapH fc h)
   -- oth -> oth
 
 varmapC :: (Int -> (Name, Int) -> Value) -> Int -> Comp -> Comp
 varmapC onvar cur c = case c of
     Op l v (y :. c) -> Op l (fv cur v) (y :. fc (cur+1) c)
     Sc l v (y :. c1) (z :. c2) -> Sc l (fv cur v) (y :. fc (cur+1) c1) (z :. fc (cur+1) c2)
-    Handle h c -> Handle (varmapH onvar cur h) (fc cur c)
+    Handle (Vhandler h) c -> Handle (Vhandler $ varmapH onvar cur h) (fc cur c)
     Do x c1 c2 -> Do x (fc cur c1) (fc (cur+1) c2)
     Let x v c  -> Let x (fv cur v) (fc (cur+1) c)
     Case v x c1 y c2 -> Case (fv cur v) x (fc (cur+1) c1) y (fc (cur+1) c2)

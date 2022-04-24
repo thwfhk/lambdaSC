@@ -70,7 +70,8 @@ data Comp
   = Return Value                                   -- ^ return v
   | Op Name Value (Dot Name Comp)                  -- ^ op l v (y.c)
   | Sc Name Value (Dot Name Comp) (Dot Name Comp)  -- ^ sc l v (y.c1) (z.c2)
-  | Handle Handler Comp                            -- ^ v ★ c
+  --  | Handle Handler Comp                            -- ^ v ★ c
+  | Handle Value Comp                            -- ^ v ★ c
   | Do Name Comp Comp                              -- ^ do x <- c1 in c2
   | App Value Value                                -- ^ v1 v2
   | Let Name Value Comp                            -- ^ let x = v in c
@@ -104,7 +105,7 @@ data Comp
   deriving (Show, Eq)
 
 infixr 8 #
-(#) :: Handler -> Comp -> Comp
+(#) :: Value -> Comp -> Comp
 h # c = Handle h c
 
 -- | Memory datatype

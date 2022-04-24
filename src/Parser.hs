@@ -156,7 +156,7 @@ parseSc = do
 
 parseHandle :: Parser Comp
 parseHandle = do
-  h <- parseHandler
+  h <- parseVHandler
   reservedOp "#"
   c <- parseComp
   return $ Handle h c

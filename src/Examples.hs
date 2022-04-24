@@ -27,8 +27,8 @@ absurd x = undefined
 -- * Section 2.1 & Section 5: Inc
 
 -- | @hInc@ refers to the @h_inc@ handler in Section 2.1 and Section 5
-hInc :: Handler
-hInc = Handler
+hInc :: Value
+hInc = Vhandler $ Handler
   "hInc" ["inc"] []
   ("x", Return . Lam "s" $ Return (Vpair (Var "x" 1, Var "s" 0)))
   (\ oplabel -> case oplabel of
@@ -75,8 +75,8 @@ cFwd = Sc "once" Vunit ("_" :. cInc) ("x" :. Op "inc" Vunit ("y" :.
 -- * Section 2.2 & Section 7.1 : Nondeterminism with Once
 
 -- | @hOnce@ refers to the @h_once@ handler in Section 2.2 & Section 7.1
-hOnce :: Handler
-hOnce = Handler
+hOnce :: Value
+hOnce = Vhandler $ Handler
   "hOnce" ["choose", "fail"] ["once"]
   ("x", Return $ Vlist [Var "x" 0])
   (\ oplabel -> case oplabel of
@@ -112,8 +112,8 @@ cOnce = Sc "once" Vunit ("_" :. op "choose" Vunit)
 -- * Section 7.2 : Nondeterminism with Cut
 
 -- | @hCut@ refers to the @h_cut@ handler in Section 7.2
-hCut :: Handler
-hCut = Handler
+hCut :: Value
+hCut = Vhandler $ Handler
   "hCut" ["choose", "fail", "cut"] ["call"]
   ("x", Return . Vret $ Vlist [Var "x" 0])
   (\ oplabel -> case oplabel of
@@ -195,8 +195,8 @@ cCatch = sc "catch" (Vstr "Overflow") ("b" :. If (Var "b" 0) cRaise (Return (Vin
 -- * Section 7.4 : Local State
 
 -- | @hState@ refers to the @h_state@ handler in Section 7.4
-hState :: Handler
-hState = Handler
+hState :: Value
+hState = Vhandler $ Handler
   "hState" ["get", "put"] ["local"]
   ("x", Return . Lam "m" $ Return (Vpair (Var "x" 1, Var "m" 0)))
   (\ oplabel -> case oplabel of
@@ -252,8 +252,8 @@ handle_cState = Do "m" (Newmem Vunit) $
 -- * Section 7.5 : Depth-Bounded Search
 
 -- | @hDepth@ refers to the @h_depth@ handler in Section 7.5
-hDepth :: Handler
-hDepth = Handler
+hDepth :: Value
+hDepth = Vhandler $ Handler
   "hDepth" ["choose", "fail"] ["depth"]
   ("x", Return . Lam "d" $ Return (Vlist [Vpair (Var "x" 1, Var "d" 0)]))
   (\ oplabel -> case oplabel of
@@ -288,8 +288,8 @@ hDepth = Handler
 
 -- | @hDepth2@ is another handler for @depth@.
 -- The depth consumed by the scoped computation is also counted in the global depth bound.
-hDepth2 :: Handler
-hDepth2 = Handler
+hDepth2 :: Value
+hDepth2 = Vhandler $ Handler
   "hDepth" ["choose", "fail"] ["depth"]
   ("x", Return . Lam "d" $ Return (Vlist [Vpair (Var "x" 1, Var "d" 0)]))
   (\ oplabel -> case oplabel of
@@ -356,8 +356,8 @@ cDepth = Sc "depth" (Vint 1) ("_" :.
 -- * Section 7.6 : Parsers
 
 -- | @hToken@ refers to the @h_token@ handler in Section 7.6
-hToken :: Handler
-hToken = Handler
+hToken :: Value
+hToken = Vhandler $ Handler
   "hToken" ["token"] []
   ("x", Return . Lam "s" $ Return (Vpair (Var "x" 1, Var "s" 0)))
   (\ oplabel -> case oplabel of
@@ -453,4 +453,3 @@ handle_expr = hCut # (Do "c" (hToken # App expr Vunit) $
                       App (Var "c" 0) (Vstr "(2+5)*8"))
 -- >>> eval $ handle_expr
 -- Return (Vret (Vlist [Vpair (Vint 56,Vstr ""),Vpair (Vint 7,Vstr "*8")]))
-
