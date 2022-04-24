@@ -4,7 +4,7 @@ cabal-version: 1.12
 --
 -- see: https://github.com/sol/hpack
 --
--- hash: 62a54c0b4c3f74fd4201a6985e6b3162bcddea4dd6baefafb94220e1142cfc99
+-- hash: e3c20ac3a4cde63e4603dec0f817b173eee80f862cf35a6496ece7a95b9a3f29
 
 name:           lambdaSC
 version:        0.1.0.0
@@ -27,9 +27,11 @@ source-repository head
 
 library
   exposed-modules:
+      Context
       Evaluation
       Examples
-      Lib
+      Lexer
+      Parser
       Syntax
   other-modules:
       Paths_lambdaSC
@@ -37,6 +39,7 @@ library
       src
   build-depends:
       base >=4.7 && <5
+    , mtl
     , parsec
   default-language: Haskell2010
 
@@ -50,6 +53,7 @@ executable lambdaSC-exe
   build-depends:
       base >=4.7 && <5
     , lambdaSC
+    , mtl
     , parsec
   default-language: Haskell2010
 
@@ -64,5 +68,6 @@ test-suite lambdaSC-test
   build-depends:
       base >=4.7 && <5
     , lambdaSC
+    , mtl
     , parsec
   default-language: Haskell2010

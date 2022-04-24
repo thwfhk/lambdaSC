@@ -1,5 +1,10 @@
+{-# LANGUAGE FlexibleContexts #-}
+
 module Syntax where
 
+import Control.Monad.Except
+
+type Err = String
 type Name = String
 
 -- | Value syntax
@@ -8,6 +13,7 @@ data Value
   | Lam Name Comp
   | Vunit
   | Vpair (Value, Value)
+  | Vhandler Handler
   -- Vhandler Handler
   -- extensions:
   | Vbool Bool
@@ -19,6 +25,15 @@ data Value
   | Vret Value | Vflag Value
   | Vmem (Memory Value)
   deriving (Show, Eq)
+
+-- | Handler Clauses Syntax
+data Clause
+  = RetClause Name Comp
+  | OpClause Name Name Name Comp
+  | ScClause Name Name Name Name Comp
+  | FwdClause Name Name Name Comp
+  deriving (Show, Eq)
+
 
 -- | Handler syntax
 data Handler = Handler
@@ -35,6 +50,17 @@ instance Show Handler where
 
 instance Eq Handler where
   Handler x _ _ _ _ _ _ == Handler y _ _ _ _ _ _ = x == y
+
+-- 在这里检查语句的种类和数量
+clauses2handler :: MonadError Err m => [Clause] -> m Handler
+clauses2handler cls = return Handler { hname = show cls
+                                     , oplist = []
+                                     , sclist = []
+                                     , hreturn = undefined
+                                     , hop = undefined
+                                     , hsc = undefined
+                                     , hfwd = undefined
+                                     }
 
 infixr 0 :.
 data (Dot a b) = a :. b deriving (Show, Eq)
