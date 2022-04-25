@@ -3,6 +3,7 @@
 module Syntax where
 
 import Control.Monad.Except
+import Data.List
 
 type Err = String
 type Name = String
@@ -52,15 +53,46 @@ instance Eq Handler where
   Handler x _ _ _ _ _ _ == Handler y _ _ _ _ _ _ = x == y
 
 -- 在这里检查语句的种类和数量
+-- ret, op, op, op, sc, sc, sc, fwd
 clauses2handler :: MonadError Err m => [Clause] -> m Handler
-clauses2handler cls = return Handler { hname = show cls
-                                     , oplist = []
-                                     , sclist = []
-                                     , hreturn = undefined
-                                     , hop = undefined
-                                     , hsc = undefined
-                                     , hfwd = undefined
-                                     }
+clauses2handler cls = do
+    let hname = show cls
+    hreturn <- case (head cls) of
+                RetClause x c -> return (x, c)
+                _ -> throwError "No return clause"
+    hfwd    <- case (last cls) of
+                FwdClause f p k c -> return (f, p, k, c)
+                _ -> throwError "No forwarding clause"
+    let opCls  = takeWhile isOp (tail cls)
+    let oplist = map (\(OpClause l _ _ _) -> l) opCls
+    let hop    = \name ->
+          do OpClause _ x k c <- find (\(OpClause l _ _ _) -> l == name) opCls
+             return (x, k, c)
+    let scCls  = takeWhile isSc (reverse $ init cls)
+    if length opCls + length scCls < length cls - 2 -- check the operation clauses
+      then throwError "Unknown or unordered clauses"
+      else return ()
+    let sclist = map (\(ScClause l _ _ _ _) -> l) scCls
+    let hsc    = \name -> 
+          do ScClause _ x p k c <- find (\(ScClause l _ _ _ _) -> l == name) scCls
+             return (x, p, k, c)
+    return $ Handler hname oplist sclist hreturn hop hsc hfwd
+  where
+    isOp x = case x of
+              OpClause _ _ _ _ -> True
+              _ -> False
+    isSc x = case x of
+              ScClause _ _ _ _ _ -> True
+              _ -> False
+
+-- clauses2handler cls = return Handler { hname = show cls
+--                                      , oplist = []
+--                                      , sclist = []
+--                                      , hreturn = undefined
+--                                      , hop = undefined
+--                                      , hsc = undefined
+--                                      , hfwd = undefined
+--                                      }
 
 infixr 0 :.
 data (Dot a b) = a :. b deriving (Show, Eq)

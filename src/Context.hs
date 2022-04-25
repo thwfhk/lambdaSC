@@ -9,8 +9,6 @@ import Data.Functor.Identity (Identity)
 import Control.Monad.State
 import Control.Monad.Except
 
--- type Parser a = ParsecT String Context Identity a
-type Parser a = ParsecT String Context (Except Err) a
 
 data Binding = NameBind deriving (Show, Eq)
 

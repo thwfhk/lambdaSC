@@ -1,6 +1,7 @@
 module Evaluation where
 
 import Syntax
+import Debug.Trace
 
 
 -- | Evaluation
@@ -12,6 +13,8 @@ eval c = case eval1 c of
 -- | Single step evaluation
 eval1 :: Comp -> Maybe Comp
 eval1 (App (Lam x c) v) = return . shiftC (-1) $ subst c [(shiftV 1 v, 0)]
+
+eval1 (Let x v c) = return . shiftC (-1) $ subst c [(shiftV 1 v, 0)]
 
 eval1 (Do x (Return v) c) = return . shiftC (-1) $ subst c [(shiftV 1 v, 0)]
 eval1 (Do x (Op l v (y :. c1)) c2) = return $ Op l v (y :. Do x c1 c2)
@@ -107,8 +110,7 @@ mapC fc fv c = case c of
   Return v -> Return (fv v)
   Op l v (y :. c) -> Op l (fv v) (y :. fc c)
   Sc l v (y :. c1) (z :. c2) -> Sc l (fv v) (y :. fc c1) (z :. fc c2)
-  Handle (Vhandler h) c -> Handle (Vhandler $ mapH fc h) (fc c)
-  Handle _ _ -> undefined
+  Handle v c -> Handle (fv v) (fc c)
   Do x c1 c2 -> Do x (fc c1) (fc c2)
   App v1 v2 -> App (fv v1) (fv v2)
   Let x v c  -> Let x (fv v) (fc c)
@@ -172,7 +174,7 @@ varmapC :: (Int -> (Name, Int) -> Value) -> Int -> Comp -> Comp
 varmapC onvar cur c = case c of
     Op l v (y :. c) -> Op l (fv cur v) (y :. fc (cur+1) c)
     Sc l v (y :. c1) (z :. c2) -> Sc l (fv cur v) (y :. fc (cur+1) c1) (z :. fc (cur+1) c2)
-    Handle (Vhandler h) c -> Handle (Vhandler $ varmapH onvar cur h) (fc cur c)
+    Handle v c -> Handle (fv cur v) (fc cur c)
     Do x c1 c2 -> Do x (fc cur c1) (fc (cur+1) c2)
     Let x v c  -> Let x (fv cur v) (fc (cur+1) c)
     Case v x c1 y c2 -> Case (fv cur v) x (fc (cur+1) c1) y (fc (cur+1) c2)

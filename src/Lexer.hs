@@ -1,7 +1,6 @@
 module Lexer where
 
 import Text.Parsec hiding (Parsec)
--- import Text.Parsec.Language (emptyDef)
 import Text.Parsec.Language hiding (emptyDef)
 
 import qualified Text.Parsec.Token as Tok

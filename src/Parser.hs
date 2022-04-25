@@ -16,6 +16,9 @@ import Lexer
 import Syntax
 import Context
 
+
+type Parser a = ParsecT String Context (Except Err) a
+
 ----------------------------------------------------------------
 -- * Value Parser
 
@@ -32,8 +35,8 @@ parseValue = (whiteSpace >>) $ choice
   , try parsePair
   , parseSum
   , parseList
-  , parseVHandler
-  , try $ parens parseValue
+  , try parseVHandler
+  , parens parseValue
   ]
 
 parseVar :: Parser Value
@@ -97,6 +100,19 @@ parseSum  =  (reserved "left" >> parseValue >>= return . Vsum . Left)
 ----------------------------------------------------------------
 -- * Computation Parser
 
+parseComp :: Parser Comp
+parseComp = (whiteSpace >>) $ choice
+  [ parseRet
+  , parseLet
+  , parseOp
+  , parseSc
+  , parseDo
+  , parseIf
+  , try parseApp
+  , try parseHandle
+  , parens parseComp
+  ]
+
 parseRet :: Parser Comp
 parseRet = reserved "return" >> parseValue >>= return . Return
 
@@ -106,6 +122,13 @@ parseApp = do
   v1 <- parseValue
   v2 <- parseValue
   return $ App v1 v2
+
+parseHandle :: Parser Comp
+parseHandle = do
+  h <- parseValue
+  reservedOp "#"
+  c <- parseComp
+  return $ Handle h c
 
 parseLet :: Parser Comp
 parseLet = do
@@ -154,13 +177,6 @@ parseSc = do
                          return (z, c)
   return $ Sc l v (y :. c1) (z :. c2)
 
-parseHandle :: Parser Comp
-parseHandle = do
-  h <- parseVHandler
-  reservedOp "#"
-  c <- parseComp
-  return $ Handle h c
-
 parseDo :: Parser Comp
 parseDo = do
   reserved "do"
@@ -188,19 +204,6 @@ parseIf = do
 
 -- TODO: a lot of other computations
 
-
-parseComp :: Parser Comp
-parseComp = (whiteSpace >>) $ choice
-  [ parseRet
-  , try parseApp
-  , parseLet
-  , parseOp
-  , parseSc
-  , parseHandle
-  , parseDo
-  , parseIf
-  , try $ parens parseComp
-  ]
 
 
 -- binary :: String -> (a -> a -> a) -> Ex.Assoc -> Ex.Operator String u (Except Err) a
