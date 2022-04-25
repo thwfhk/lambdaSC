@@ -8,6 +8,13 @@ import Data.List
 type Err = String
 type Name = String
 
+
+-- | Command syntax
+data Command
+  = Def Name Value
+  | Run Comp
+  deriving (Show, Eq)
+
 -- | Value syntax
 data Value 
   = Var Name Int  -- ^ use De Bruijn Index
@@ -85,14 +92,6 @@ clauses2handler cls = do
               ScClause _ _ _ _ _ -> True
               _ -> False
 
--- clauses2handler cls = return Handler { hname = show cls
---                                      , oplist = []
---                                      , sclist = []
---                                      , hreturn = undefined
---                                      , hop = undefined
---                                      , hsc = undefined
---                                      , hfwd = undefined
---                                      }
 
 infixr 0 :.
 data (Dot a b) = a :. b deriving (Show, Eq)
@@ -140,6 +139,19 @@ infixr 8 #
 (#) :: Value -> Comp -> Comp
 h # c = Handle h c
 
+cmds2comps :: [Command] -> [Comp]
+cmds2comps cmds = 
+    let defs = filter isDef cmds
+    in let runs = filter isRun cmds
+    in map (\ (Run main) -> foldr (\(Def x v) c -> Let x v c) main defs) runs
+  where
+    isDef (Def _ _) = True
+    isDef _ = False
+    isRun (Run _) = True
+    isRun _ = False
+
+
+----------------------------------------------------------------
 -- | Memory datatype
 newtype Memory s = Mem { runMem :: Name -> Maybe s }
 instance Eq (Memory a) where

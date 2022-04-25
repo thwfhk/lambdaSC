@@ -53,6 +53,8 @@ langDef = emptyDef
             , "sc"
             , "do"
             , "handler"
+            , "DEF"
+            , "RUN"
             ]
 
 lexer :: Tok.GenTokenParser String u (Except Err)

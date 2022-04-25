@@ -17,18 +17,24 @@ runParseComp = runParserT parseComp emptyctx
 runParseClauses :: String -> Except Err (Either ParseError [Clause])
 runParseClauses = runParserT parseClauses emptyctx "CandyQwQ"
 
-fromFile :: IO ()
-fromFile = do
+runParseCmds :: String -> String -> Except Err (Either ParseError [Command])
+runParseCmds = runParserT parseCmds emptyctx
+
+runFile :: IO ()
+runFile = do
   args <- getArgs
   case args of
     [sourceFileName, dstFileName] -> do
       sourceFile <- readFile sourceFileName
-      case runExcept (runParseComp sourceFileName sourceFile) of
+      case runExcept (runParseCmds sourceFileName sourceFile) of
         Left err -> putStrLn $ "[PARSE FAILED 😵]: " ++ show err
         Right e -> case e of
           Left err -> putStrLn $ "[PARSE FAILED 😵]: " ++ show err
-          Right c -> do putStrLn $ "[PARSE SUCCESS 🥳]:\n  " ++ show c
-                        putStrLn $ "[EVALUATION RESULT]:\n  " ++ show (eval c)
+          Right cmds -> do putStrLn $ "[PARSE SUCCESS 🥳]:\n  " ++ show cmds
+                           let cs = cmds2comps cmds
+                           putStrLn $ "[EVALUATION RESULTS]:"
+                           mapM (\ c -> putStrLn $ "  " ++ show (eval c)) cs
+                           return ()
     _ -> putStrLn "file names error, enter REPL" >> repl
 
 repl :: IO ()
@@ -43,4 +49,4 @@ repl = do
   repl
 
 main :: IO ()
-main = fromFile
+main = runFile

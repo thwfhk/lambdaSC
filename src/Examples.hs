@@ -4,6 +4,14 @@ import Syntax
 import Evaluation
 import Prelude hiding ((<>))
 
+
+----------------------------------------------------------------
+
+-- | The @lift@ syntactic sugar
+lift2fwd :: (Name, Name, Comp) -> (Name, Name, Name, Comp)
+lift2fwd (k, z, c) = ( "f", "p", "k",
+  App (Var "f" 2) $ Vpair (Var "p" 1, Lam "z" c ))
+
 ----------------------------------------------------------------
 -- * Some Auxiliary Functions :
 

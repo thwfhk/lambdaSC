@@ -9,6 +9,7 @@ import Control.Monad.Except
 import qualified Text.Parsec.Expr as Ex
 import qualified Text.Parsec.Token as Tok
 
+import Data.List
 import Data.Functor.Identity (Identity)
 import Control.Applicative (empty)
 
@@ -19,6 +20,31 @@ import Context
 
 type Parser a = ParsecT String Context (Except Err) a
 
+----------------------------------------------------------------
+-- * Command Parser
+
+parseCmds :: Parser [Command]
+parseCmds = do
+    ctx <- getState
+    cmds <- many (parseDef <|> parseRun)
+    setState ctx
+    return cmds
+
+parseDef :: Parser Command
+parseDef = do
+  reserved "DEF"
+  x <- identifier
+  reservedOp "="
+  v <- parseValue
+  ctx <- getState
+  setState $ addBinding ctx (x, NameBind)
+  return $ Def x v
+
+parseRun :: Parser Command
+parseRun = do
+  reserved "RUN"
+  c <- parseComp
+  return $ Run c
 ----------------------------------------------------------------
 -- * Value Parser
 
