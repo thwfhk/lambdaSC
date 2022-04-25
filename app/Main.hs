@@ -30,8 +30,10 @@ runFile = do
         Left err -> putStrLn $ "[PARSE FAILED 😵]: " ++ show err
         Right e -> case e of
           Left err -> putStrLn $ "[PARSE FAILED 😵]: " ++ show err
-          Right cmds -> do putStrLn $ "[PARSE SUCCESS 🥳]:\n  " ++ show cmds
+          Right cmds -> do putStrLn $ "[PARSE SUCCESS 🥳]:\n  " ++ show (length cmds)
+                             ++ " statements found"
                            let cs = cmds2comps cmds
+                           putStrLn (show cs)
                            putStrLn $ "[EVALUATION RESULTS]:"
                            mapM (\ c -> putStrLn $ "  " ++ show (eval c)) cs
                            return ()

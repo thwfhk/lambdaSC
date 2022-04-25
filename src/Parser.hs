@@ -27,6 +27,8 @@ parseCmds :: Parser [Command]
 parseCmds = do
     ctx <- getState
     cmds <- many (parseDef <|> parseRun)
+    ctx' <- getState
+    traceM $ "nowctx: " ++ show ctx'
     setState ctx
     return cmds
 
@@ -134,6 +136,12 @@ parseComp = (whiteSpace >>) $ choice
   , parseSc
   , parseDo
   , parseIf
+  , parseHead
+  , parseFst
+  , parseSnd
+  , parseConcatMap
+  , try parseAppend
+  , try parseAdd -- Add should be before App
   , try parseApp
   , try parseHandle
   , parens parseComp
@@ -142,7 +150,6 @@ parseComp = (whiteSpace >>) $ choice
 parseRet :: Parser Comp
 parseRet = reserved "return" >> parseValue >>= return . Return
 
--- is it ok?
 parseApp :: Parser Comp
 parseApp = do
   v1 <- parseValue
@@ -230,7 +237,35 @@ parseIf = do
 
 -- TODO: a lot of other computations
 
+parseHead :: Parser Comp
+parseHead = reserved "head" >> parseValue >>= return . Head
 
+parseFst :: Parser Comp
+parseFst = reserved "fst" >> parseValue >>= return . Fst
+
+parseSnd :: Parser Comp
+parseSnd = reserved "snd" >> parseValue >>= return . Snd
+
+parseConcatMap :: Parser Comp
+parseConcatMap = do
+  reserved "concatMap"
+  v1 <- parseValue
+  v2 <- parseValue
+  return $ ConcatMap v1 v2
+
+parseAppend :: Parser Comp
+parseAppend = do
+  v1 <- parseValue
+  reservedOp "++"
+  v2 <- parseValue
+  return $ Append v1 v2
+
+parseAdd :: Parser Comp
+parseAdd = do
+  v1 <- parseValue
+  reservedOp "+"
+  v2 <- parseValue
+  return $ Add v1 v2
 
 -- binary :: String -> (a -> a -> a) -> Ex.Assoc -> Ex.Operator String u (Except Err) a
 -- binary s f assoc = Ex.Infix (reservedOp s >> return f) assoc

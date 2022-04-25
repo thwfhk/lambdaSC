@@ -182,7 +182,7 @@ varmapH onvar cur h = h { hreturn = hr, hop = ho, hsc = hs, hfwd = hf }
     hr = let (x, c) = hreturn h in (x, fc (cur+1) c)
     ho l = hop h l >>= \ (x, k, c) -> return (x, k, fc (cur+2) c)
     hs l = hsc h l >>= \ (x, p, k, c) -> return (x, p, k, fc (cur+3) c)
-    hf = let (f, p, k, c) = hfwd h in (f, p, k, fc (cur+4) c)
+    hf = let (f, p, k, c) = hfwd h in (f, p, k, fc (cur+3) c)
     fc = varmapC onvar
     fv = varmapV onvar
 
@@ -190,6 +190,7 @@ varmapV :: (Int -> (Name, Int) -> Value) -> Int -> Value -> Value
 varmapV onvar cur v = case v of
     Var x i -> onvar cur (x, i)
     Lam x c -> Lam x (fc (cur+1) c)
+    Vhandler h -> Vhandler $ varmapH onvar cur h
     oth -> mapV (fc cur) (fv cur) oth
   where
     fc = varmapC onvar

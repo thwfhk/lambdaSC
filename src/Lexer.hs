@@ -37,6 +37,8 @@ langDef = emptyDef
           , "<-"
           , "#" -- star
           , "|->"
+          , "+"
+          , "++"
           ]
     names = [ "unit"
             , "true"
@@ -55,6 +57,11 @@ langDef = emptyDef
             , "handler"
             , "DEF"
             , "RUN"
+            ---------------
+            , "head"
+            , "concatMap"
+            , "fst"
+            , "snd"
             ]
 
 lexer :: Tok.GenTokenParser String u (Except Err)
