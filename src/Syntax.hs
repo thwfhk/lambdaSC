@@ -161,12 +161,15 @@ builtInFunc1 =
   , ("fst", Fst)
   , ("snd", Snd)
   , ("absurd", Absurd)
+  , ("newmem", Newmem)
   ]
 
 -- (name, constructor, is infix)
 builtInFunc2 :: [(String, Value -> Value -> Comp, Bool)]
 builtInFunc2 =
   [ ("concatMap", ConcatMap, False)
+  , ("update", Update, False)
+  , ("retrieve", Retrieve, False)
   , ("++", Append, True)
   , ("+", Add, True)
   , ("==", Eq, True)

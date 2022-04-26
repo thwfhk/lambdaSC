@@ -20,6 +20,9 @@ import Context
 
 type Parser a = ParsecT String Context (Except Err) a
 
+sourcePos :: Monad m => ParsecT s u m SourcePos
+sourcePos = statePos `liftM` getParserState
+
 ----------------------------------------------------------------
 -- * Command Parser
 
@@ -69,7 +72,8 @@ parseVar :: Parser Value
 parseVar = do
   var <- identifier
   ctx <- getState
-  case name2index ctx var of -- the only use of context during parsing
+  pos <- sourcePos
+  case name2index ctx var pos of -- the only use of context during parsing
     Right idx -> return $ Var var idx
     Left e -> throwError e
 

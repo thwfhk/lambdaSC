@@ -1,11 +1,10 @@
 DEF hInc = handler
   { return x |-> return (\ s . return (x, s))
   , op inc x k |-> return (\ s . do k' <- k s; do s1 <- (s + 1); k' s1)
-  , fwd f p k |-> return (\ s . f ( \ y .  do p' <- p y; p' s
-                                  , \ zs . do z <- fst zs;
-                                           do s' <- snd zs;
-                                           do k' <- k z;
-                                           k' s'))
+  , fwd f p k |-> return (\ s . f (
+      \ y . do p' <- p y; p' s ,
+      \ zs . do z <- fst zs; do s' <- snd zs; do k' <- k z; k' s'
+    ))
   }
 
 
@@ -33,6 +32,27 @@ DEF hExcept = handler
   , fwd f p k |-> f (p, \ z . do f <- exceptMap z; f k)
   }
 
+DEF hState = handler
+  { return x |-> return (\ m . return (x, m))
+  , op get x k |-> return (\ m . do v <- retrieve x m;
+                                 do k' <- k v; k' m)
+  , op put pa k |-> return (\ m . do k' <- k unit;
+                                  do m' <- update pa m; k' m')
+  , sc local xv p k |-> return (\ m . do x <- fst xv; do v <- snd xv;
+                                      do um <- update xv m;
+                                      do p' <- p unit;
+                                      do tm <- p' um;
+                                      do t <- fst tm; do m' <- snd tm;
+                                      do k' <- k t;
+                                      do oldv <- retrieve x m;
+                                      do newm <- update (x, oldv) m';
+                                      k' newm)
+  , fwd f p k |-> return (\ s . f (
+      \ y . do p' <- p y; p' s ,
+      \ zs . do z <- fst zs; do s' <- snd zs; do k' <- k z; k' s'
+    ))
+  }
+
 ----------------------------------------------------------------
 
 -- 1. cInc = op choose unit (b . if b
@@ -50,26 +70,26 @@ RUN do f <- hInc # (hOnce # (
 ----------------------------------------------------------------
 
 -- 2. cFwd = sc once unit
---      (t . op choose unit (b . if b
---                                  then op inc unit (t.return t)
---                                  else op inc unit (t.return t)))
+--      (_ . op choose unit (b . if b
+--                                  then op inc unit (y.return y)
+--                                  else op inc unit (y.return y)))
 --      (x . op inc unit (y . do z <- x + y; return z))
 
 RUN hOnce # (do f <- hInc # (
   sc once unit
-    (t . op choose unit (b . if b
-                             then op inc unit (t.return t)
-                             else op inc unit (t.return t)))
+    (_ . op choose unit (b . if b
+                             then op inc unit (y.return y)
+                             else op inc unit (y.return y)))
     (x . op inc unit (y . do z <- x + y; return z))
 ); f 0)
 
 ----------------------------------------------------------------
 
--- 3. cOnce = sc once unit (t . op choose unit (y . return y))
+-- 3. cOnce = sc once unit (_ . op choose unit (y . return y))
 --                         (b . if b then return "heads" else return "tails")
 
 RUN hOnce #
-  sc once unit (t . op choose unit (y . return y))
+  sc once unit (_ . op choose unit (y . return y))
                (b . if b then return "heads" else return "tails")
 
 ----------------------------------------------------------------
@@ -103,3 +123,18 @@ RUN do f <- hInc # (hExcept # (
 
 ----------------------------------------------------------------
 
+-- 5. cState = do _ <- op put (x, 10) (y.return y);
+--             do x1 <- sc local (x, 42) (_ . op get x (y.return y));
+--             do x2 <- op get x (y.return y);
+--             return (x1, x2)
+
+
+RUN do m <- newmem unit;
+    do f <- hState # (
+      do _ <- op put ("x", 10) (y.return y);
+      do x1 <- sc local ("x", 42) (_ . op get "x" (y.return y)) (z.return z);
+      do x2 <- op get "x" (y.return y);
+      return (x1, x2)
+    );
+    do x <- f m;
+    fst x

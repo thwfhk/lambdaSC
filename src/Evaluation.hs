@@ -133,6 +133,7 @@ mapC fc fv c = case c of
   Close v -> Close (fv v)
   Open v -> Open (fv v)
   Newmem v -> Newmem (fv v)
+  Absurd v -> Absurd (fv v)
   -- oth -> oth
 
 mapH :: (Comp -> Comp) -> Handler -> Handler

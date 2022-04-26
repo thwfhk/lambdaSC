@@ -4,7 +4,7 @@ module Context where
 
 import Syntax
 import Data.List
-import Text.Parsec (ParsecT, getState, setState)
+import Text.Parsec (SourcePos)
 import Data.Functor.Identity (Identity)
 import Control.Monad.State
 import Control.Monad.Except
@@ -24,11 +24,11 @@ addBindings :: [(Name, b)] -> [(Name, b)] -> [(Name, b)]
 addBindings ctx [] = ctx
 addBindings ctx (x:xs) = addBindings (addBinding ctx x) xs -- reverse order
 
-name2index :: Context -> Name -> Either Err Int
-name2index ctx name =
+name2index :: Context -> Name -> SourcePos -> Either Err Int
+name2index ctx name pos =
   case findIndex ((== name). fst) ctx of
     Just ind -> Right ind
-    Nothing -> Left $ "Unbounded variable \"" ++ name ++ "\""
+    Nothing -> Left $ "Unbounded variable " ++ name ++ " at " ++ show pos
 
 name2entry :: [(Name, b)] -> Name -> Either Err (Name, b)
 name2entry ctx name =
