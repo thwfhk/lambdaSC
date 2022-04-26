@@ -45,7 +45,7 @@ eval1 (Handle h c) = do c' <- eval1 c; return $ Handle h c'
 -- extensions:
 eval1 (If (Vbool b) c1 c2) = return $ if b then c1 else c2
 eval1 (Eq v1 v2) = return $ if v1 == v2 then Return (Vbool True) else Return (Vbool False)
-eval1 (Larger (Vint x) (Vint y)) = return $ if x > y then Return (Vbool True) else Return (Vbool False)
+eval1 (Lt (Vint x) (Vint y)) = return $ if x > y then Return (Vbool True) else Return (Vbool False)
 eval1 (Case (Vsum v) x c1 y c2) = return $ case v of
   Left t  -> shiftC (-1) $ subst c1 [(shiftV 1 t, 0)]
   Right t -> shiftC (-1) $ subst c2 [(shiftV 1 t, 0)]
@@ -110,7 +110,7 @@ mapC fc fv c = case c of
   If v c1 c2 -> If (fv v) (fc c1) (fc c2)
   Case v x c1 y c2 -> Case (fv v) x (fc c1) y (fc c2)
   Eq v1 v2 -> Eq (fv v1) (fv v2)
-  Larger v1 v2 -> Larger (fv v1) (fv v2)
+  Lt v1 v2 -> Lt (fv v1) (fv v2)
   Add v1 v2 -> Add (fv v1) (fv v2)
   Minus v1 v2 -> Minus (fv v1) (fv v2)
   Min v1 v2 -> Min (fv v1) (fv v2)

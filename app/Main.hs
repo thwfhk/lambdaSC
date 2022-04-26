@@ -33,8 +33,8 @@ runFile = do
           Right cmds -> do putStrLn $ "[PARSE SUCCESS 🥳]:\n  " ++ show (length cmds)
                              ++ " statements found"
                            let cs = cmds2comps cmds
-                           putStrLn (show cs)
-                           putStrLn $ "[EVALUATION RESULTS]:"
+                          --  putStrLn (show cs)
+                           putStrLn $ "[EVALUATION RESULTS 🥳]:"
                            mapM (\ c -> putStrLn $ "  " ++ show (eval c)) cs
                            return ()
     _ -> putStrLn "file names error, enter REPL" >> repl

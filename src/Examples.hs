@@ -185,7 +185,7 @@ exceptMap = Lam "z" . Return . Lam "k" $
 -- | @cRaise@ refers to the @_raise@ program in Section 7.3
 cRaise :: Comp
 cRaise = Do "x" (op "inc" Vunit) $
-         Do "b" (Larger (Var "x" 0) (Vint 10)) $
+         Do "b" (Lt (Var "x" 0) (Vint 10)) $
          If (Var "b" 0) (Op "raise" (Vstr "Overflow") ("y" :. absurd (Var "y" 0)))
                         (Return (Var "x" 0))
 

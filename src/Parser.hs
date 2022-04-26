@@ -27,8 +27,6 @@ parseCmds :: Parser [Command]
 parseCmds = do
     ctx <- getState
     cmds <- many (parseDef <|> parseRun)
-    ctx' <- getState
-    traceM $ "nowctx: " ++ show ctx'
     setState ctx
     return cmds
 
@@ -129,21 +127,20 @@ parseSum  =  (reserved "left" >> parseValue >>= return . Vsum . Left)
 -- * Computation Parser
 
 parseComp :: Parser Comp
-parseComp = (whiteSpace >>) $ choice
+parseComp = (whiteSpace >>) . choice $
   [ parseRet
   , parseLet
   , parseOp
   , parseSc
   , parseDo
   , parseIf
-  , parseHead
-  , parseFst
-  , parseSnd
-  , parseConcatMap
-  , try parseAppend
-  , try parseAdd -- Add should be before App
-  , try parseApp
-  , try parseHandle
+  , parseCase
+  ]
+  ++ map getFunc1Parser builtInFunc1
+  ++ map getFunc2Parser builtInFunc2
+  ++
+  [ try parseHandle
+  , try parseApp -- I guess App should be the last one
   , parens parseComp
   ]
 
@@ -235,50 +232,36 @@ parseIf = do
   c2 <- parseComp
   return $ If v c1 c2
 
+parseCase :: Parser Comp
+parseCase = do
+  reserved "case"
+  v <- parseValue
+  reserved "of"
+  reserved "left"
+  x <- identifier 
+  reserved "->"
+  ctx <- getState
+  setState $ addBinding ctx (x, NameBind)
+  c1 <- parseComp
+  setState ctx
+  reserved "right"
+  y <- identifier 
+  reserved "->"
+  ctx <- getState
+  setState $ addBinding ctx (y, NameBind)
+  c2 <- parseComp
+  setState ctx
+  return $ Case v x c1 y c2
+
+
 -- TODO: a lot of other computations
 
-parseHead :: Parser Comp
-parseHead = reserved "head" >> parseValue >>= return . Head
+getFunc1Parser :: (String, Value -> Comp) -> Parser Comp
+getFunc1Parser (name, cons) = reserved name >> parseValue >>= return . cons
 
-parseFst :: Parser Comp
-parseFst = reserved "fst" >> parseValue >>= return . Fst
-
-parseSnd :: Parser Comp
-parseSnd = reserved "snd" >> parseValue >>= return . Snd
-
-parseConcatMap :: Parser Comp
-parseConcatMap = do
-  reserved "concatMap"
-  v1 <- parseValue
-  v2 <- parseValue
-  return $ ConcatMap v1 v2
-
-parseAppend :: Parser Comp
-parseAppend = do
-  v1 <- parseValue
-  reservedOp "++"
-  v2 <- parseValue
-  return $ Append v1 v2
-
-parseAdd :: Parser Comp
-parseAdd = do
-  v1 <- parseValue
-  reservedOp "+"
-  v2 <- parseValue
-  return $ Add v1 v2
-
--- binary :: String -> (a -> a -> a) -> Ex.Assoc -> Ex.Operator String u (Except Err) a
--- binary s f assoc = Ex.Infix (reservedOp s >> return f) assoc
-
--- compOps :: [[Ex.Operator String u (Except Err) Comp]]
--- compOps = [ [ binary "+" Add Ex.AssocLeft ] ]
-
--- parseType :: Parser Comp
--- parseType = whiteSpace >> Ex.buildExpressionParser typeOps parsePrimType
-
--- parseTerm :: Parser Comp
--- parseTerm = whiteSpace >> chainl1 (try parsePrimComp) (return App)
-
+getFunc2Parser (name, cons, b) = if b
+  then try $ do v1 <- parseValue; reservedOp name; v2 <- parseValue; return $ cons v1 v2
+  else do reserved name; v1 <- parseValue; v2 <- parseValue; return $ cons v1 v2
 
 ----------------------------------------------------------------
 -- * Handler Parser

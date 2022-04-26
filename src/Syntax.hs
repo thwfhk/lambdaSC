@@ -112,7 +112,7 @@ data Comp
   | If Value Comp Comp
   | Case Value Name Comp Name Comp
   | Eq Value Value
-  | Larger Value Value
+  | Lt Value Value
   | Add Value Value
   | Minus Value Value
   | Min Value Value
@@ -133,6 +133,7 @@ data Comp
   | Retrieve Value Value
   | Update Value Value
   | Newmem Value
+  | Absurd Value
   deriving (Show, Eq)
 
 infixr 8 #
@@ -150,6 +151,27 @@ cmds2comps cmds =
     isRun (Run _) = True
     isRun _ = False
 
+----------------------------------------------------------------
+-- built-in functions
+
+-- (name, constructor)
+builtInFunc1 :: [(String, Value -> Comp)]
+builtInFunc1 = 
+  [ ("head", Head)
+  , ("fst", Fst)
+  , ("snd", Snd)
+  , ("absurd", Absurd)
+  ]
+
+-- (name, constructor, is infix)
+builtInFunc2 :: [(String, Value -> Value -> Comp, Bool)]
+builtInFunc2 =
+  [ ("concatMap", ConcatMap, False)
+  , ("++", Append, True)
+  , ("+", Add, True)
+  , ("==", Eq, True)
+  , (">", Lt, True)
+  ]
 
 ----------------------------------------------------------------
 -- | Memory datatype
