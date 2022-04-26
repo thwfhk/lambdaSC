@@ -12,6 +12,8 @@ eval c = case eval1 c of
 
 -- | Single step evaluation
 eval1 :: Comp -> Maybe Comp
+eval1 (App' vs) = return $ apps2app (head vs) (tail vs) -- desugar
+
 eval1 (App (Lam x c) v) = return . shiftC (-1) $ subst c [(shiftV 1 v, 0)]
 
 eval1 (Let x v c) = return . shiftC (-1) $ subst c [(shiftV 1 v, 0)]
@@ -134,6 +136,7 @@ mapC fc fv c = case c of
   Open v -> Open (fv v)
   Newmem v -> Newmem (fv v)
   Absurd v -> Absurd (fv v)
+  App' vs -> App' (map fv vs)
   -- oth -> oth
 
 mapH :: (Comp -> Comp) -> Handler -> Handler
@@ -209,3 +212,8 @@ substC c (v, j) = varmapC (\ cur (x, i) -> if i == j+cur then shiftV cur v else 
 subst :: Comp -> [(Value, Int)] -> Comp
 subst c [] = c
 subst c ((v, j) : as) = subst (substC c (v, j)) as
+
+apps2app :: Value -> [Value] -> Comp
+apps2app f []     = error "apps2app: [] is impossible"
+apps2app f [v]    = App f v
+apps2app f (v:vs) = Do "f" (App f v) (apps2app (Var "f" 0) $ map (shiftV 1) vs)

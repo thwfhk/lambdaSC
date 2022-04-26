@@ -144,7 +144,7 @@ parseComp = (whiteSpace >>) . choice $
   ++ map getFunc2Parser builtInFunc2
   ++
   [ try parseHandle
-  , try parseApp -- I guess App should be the last one
+  , try parseApp' -- I guess App should be the last one
   , parens parseComp
   ]
 
@@ -156,6 +156,12 @@ parseApp = do
   v1 <- parseValue
   v2 <- parseValue
   return $ App v1 v2
+
+parseApp' :: Parser Comp
+parseApp' = do
+  v <- parseValue
+  vs <- many1 parseValue
+  return $ App' (v:vs)
 
 parseHandle :: Parser Comp
 parseHandle = do
@@ -182,13 +188,14 @@ parseOp = do
   reserved "op"
   l <- identifier
   v <- parseValue
-  parens $ do y <- identifier
-              dot
-              ctx <- getState
-              setState $ addBinding ctx (y, NameBind)
-              c <- parseComp
-              setState ctx
-              return $ Op l v (y :. c)
+  try (parens ( do y <- identifier
+                   dot
+                   ctx <- getState
+                   setState $ addBinding ctx (y, NameBind)
+                   c <- parseComp
+                   setState ctx
+                   return $ Op l v (y :. c)
+              )) <|> return (Op l v ("y" :. Return (Var "y" 0)))
 
 parseSc :: Parser Comp
 parseSc = do
@@ -202,13 +209,14 @@ parseSc = do
                          c <- parseComp
                          setState ctx
                          return (y, c)
-  (z, c2) <- parens $ do z <- identifier
-                         dot
-                         ctx <- getState
-                         setState $ addBinding ctx (z, NameBind)
-                         c <- parseComp
-                         setState ctx
-                         return (z, c)
+  (z, c2) <- try (parens ( do z <- identifier
+                              dot
+                              ctx <- getState
+                              setState $ addBinding ctx (z, NameBind)
+                              c <- parseComp
+                              setState ctx
+                              return (z, c)
+                         )) <|> return ("z", Return (Var "z" 0))
   return $ Sc l v (y :. c1) (z :. c2)
 
 parseDo :: Parser Comp

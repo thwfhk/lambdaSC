@@ -59,40 +59,6 @@ instance Show Handler where
 instance Eq Handler where
   Handler x _ _ _ _ _ _ == Handler y _ _ _ _ _ _ = x == y
 
--- 在这里检查语句的种类和数量
--- ret, op, op, op, sc, sc, sc, fwd
-clauses2handler :: MonadError Err m => [Clause] -> m Handler
-clauses2handler cls = do
-    let hname = show cls
-    hreturn <- case (head cls) of
-                RetClause x c -> return (x, c)
-                _ -> throwError "No return clause"
-    hfwd    <- case (last cls) of
-                FwdClause f p k c -> return (f, p, k, c)
-                _ -> throwError "No forwarding clause"
-    let opCls  = takeWhile isOp (tail cls)
-    let oplist = map (\(OpClause l _ _ _) -> l) opCls
-    let hop    = \name ->
-          do OpClause _ x k c <- find (\(OpClause l _ _ _) -> l == name) opCls
-             return (x, k, c)
-    let scCls  = takeWhile isSc (reverse $ init cls)
-    if length opCls + length scCls < length cls - 2 -- check the operation clauses
-      then throwError "Unknown or unordered clauses"
-      else return ()
-    let sclist = map (\(ScClause l _ _ _ _) -> l) scCls
-    let hsc    = \name -> 
-          do ScClause _ x p k c <- find (\(ScClause l _ _ _ _) -> l == name) scCls
-             return (x, p, k, c)
-    return $ Handler hname oplist sclist hreturn hop hsc hfwd
-  where
-    isOp x = case x of
-              OpClause _ _ _ _ -> True
-              _ -> False
-    isSc x = case x of
-              ScClause _ _ _ _ _ -> True
-              _ -> False
-
-
 infixr 0 :.
 data (Dot a b) = a :. b deriving (Show, Eq)
 
@@ -101,11 +67,12 @@ data Comp
   = Return Value                                   -- ^ return v
   | Op Name Value (Dot Name Comp)                  -- ^ op l v (y.c)
   | Sc Name Value (Dot Name Comp) (Dot Name Comp)  -- ^ sc l v (y.c1) (z.c2)
-  --  | Handle Handler Comp                            -- ^ v ★ c
   | Handle Value Comp                            -- ^ v ★ c
   | Do Name Comp Comp                              -- ^ do x <- c1 in c2
   | App Value Value                                -- ^ v1 v2
   | Let Name Value Comp                            -- ^ let x = v in c
+  -- syntactic sugars:
+  | App' [Value]
   -- extensions:
   -- We implement most functions in the paper as built-in functions
   -- because the interpreter doesn't support pattern matching and recursive functions.
@@ -140,16 +107,6 @@ infixr 8 #
 (#) :: Value -> Comp -> Comp
 h # c = Handle h c
 
-cmds2comps :: [Command] -> [Comp]
-cmds2comps cmds = 
-    let defs = filter isDef cmds
-    in let runs = filter isRun cmds
-    in map (\ (Run main) -> foldr (\(Def x v) c -> Let x v c) main defs) runs
-  where
-    isDef (Def _ _) = True
-    isDef _ = False
-    isRun (Run _) = True
-    isRun _ = False
 
 ----------------------------------------------------------------
 -- built-in functions
@@ -175,6 +132,55 @@ builtInFunc2 =
   , ("==", Eq, True)
   , (">", Lt, True)
   ]
+
+
+----------------------------------------------------------------
+-- Utilities
+
+cmds2comps :: [Command] -> [Comp]
+cmds2comps cmds = 
+    let defs = filter isDef cmds
+    in let runs = filter isRun cmds
+    in map (\ (Run main) -> foldr (\(Def x v) c -> Let x v c) main defs) runs
+  where
+    isDef (Def _ _) = True
+    isDef _ = False
+    isRun (Run _) = True
+    isRun _ = False
+
+
+-- 在这里检查语句的种类和数量
+-- ret, op, op, op, sc, sc, sc, fwd
+clauses2handler :: MonadError Err m => [Clause] -> m Handler
+clauses2handler cls = do
+    let hname = show cls
+    hreturn <- case (head cls) of
+                RetClause x c -> return (x, c)
+                _ -> throwError "No return clause"
+    hfwd    <- case (last cls) of
+                FwdClause f p k c -> return (f, p, k, c)
+                _ -> throwError "No forwarding clause"
+    let opCls  = takeWhile isOp (tail cls)
+    let oplist = map (\(OpClause l _ _ _) -> l) opCls
+    let hop    = \name ->
+          do OpClause _ x k c <- find (\(OpClause l _ _ _) -> l == name) opCls
+             return (x, k, c)
+    let scCls  = takeWhile isSc (reverse $ init cls)
+    if length opCls + length scCls < length cls - 2 -- check the operation clauses
+      then throwError "Unknown or unordered clauses"
+      else return ()
+    let sclist = map (\(ScClause l _ _ _ _) -> l) scCls
+    let hsc    = \name -> 
+          do ScClause _ x p k c <- find (\(ScClause l _ _ _ _) -> l == name) scCls
+             return (x, p, k, c)
+    return $ Handler hname oplist sclist hreturn hop hsc hfwd
+  where
+    isOp x = case x of
+              OpClause _ _ _ _ -> True
+              _ -> False
+    isSc x = case x of
+              ScClause _ _ _ _ _ -> True
+              _ -> False
 
 ----------------------------------------------------------------
 -- | Memory datatype
