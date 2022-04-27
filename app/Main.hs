@@ -4,6 +4,7 @@ import Syntax
 import Context
 import Parser
 import Evaluation
+import PrettyPrinter
 import Text.Parsec
 import Control.Monad.Except
 import System.Environment
@@ -35,7 +36,8 @@ runFile = do
                            let cs = cmds2comps cmds
                           --  putStrLn (show cs)
                            putStrLn $ "[EVALUATION RESULTS 🥳]:"
-                           mapM (\ c -> putStrLn $ "  " ++ show (eval c)) cs
+                          --  mapM (\ c -> putStrLn $ "  " ++ show (eval c)) cs
+                           mapM (\ c -> putStrLn $ "  " ++ printComp (eval c)) cs
                            return ()
     _ -> putStrLn "file names error, enter REPL" >> repl
 

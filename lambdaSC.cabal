@@ -4,7 +4,7 @@ cabal-version: 1.12
 --
 -- see: https://github.com/sol/hpack
 --
--- hash: e3c20ac3a4cde63e4603dec0f817b173eee80f862cf35a6496ece7a95b9a3f29
+-- hash: 47bf83a5086817197e2d16d070f69c84a38352a82e22012398c26df8b2718613
 
 name:           lambdaSC
 version:        0.1.0.0
@@ -32,6 +32,7 @@ library
       Examples
       Lexer
       Parser
+      PrettyPrinter
       Syntax
   other-modules:
       Paths_lambdaSC

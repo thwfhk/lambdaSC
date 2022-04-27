@@ -125,8 +125,6 @@ parseSum  =  (reserved "left" >> parseValue >>= return . Vsum . Left)
 
 -- TODO: parseCutlist
 
--- TODO: parseMem
-
 ----------------------------------------------------------------
 -- * Computation Parser
 

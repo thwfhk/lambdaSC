@@ -68,7 +68,7 @@ data Comp
   | Op Name Value (Dot Name Comp)                  -- ^ op l v (y.c)
   | Sc Name Value (Dot Name Comp) (Dot Name Comp)  -- ^ sc l v (y.c1) (z.c2)
   | Handle Value Comp                            -- ^ v ★ c
-  | Do Name Comp Comp                              -- ^ do x <- c1 in c2
+  | Do Name Comp Comp                              -- ^ do x <- c1; c2
   | App Value Value                                -- ^ v1 v2
   | Let Name Value Comp                            -- ^ let x = v in c
   -- syntactic sugars:
