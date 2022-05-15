@@ -75,6 +75,32 @@ DEF hDepth = handler
      ))
   }
 
+DEF hToken = handler
+  { return x      |->  return (\ s .  return (x, s))
+  , op symbol x k |->  return (\ s .
+      do b <- s == [];
+         if b then op fail unit (y . absurd y)
+              else do x' <- head s;
+                   do xs <- tail s;
+                   do b <- x == x';
+                      if b then k x xs else op fail unit (y . absurd y))
+  , fwd f p k |-> return (\ s . f (
+      \ y . p y s ,
+      \ zs . do z <- fst zs; do s' <- snd zs; k z s'
+    ))
+  }
+  
+-- 无法递归定义！
+-- DEF digit = \ _ .  op token '0' 
+-- 
+-- DEF expr = \ _ .  (do i <- term unit; do _ <- op token '+'; do j <- expr unit; i+j)
+--                <> (do i <- term unit; return i)
+-- 
+-- DEF term = \ _ .  (do i <- factor unit; do _ <- op token '*'; do j <- factor unit; i*j)
+--                <> (do i <- factor unit; return i)
+-- 
+-- DEF factor = \ _ .  (do ds <- many1 digit; read ds)
+--                  <> (do _ <- op token '('; do i <- expr unit; do _ <- op token ')'; return i)
 ----------------------------------------------------------------
 
 -- 1. cInc = op choose unit (b . if b then op inc unit else op inc unit)
@@ -178,3 +204,7 @@ RUN do f <- hDepth # (
               do b'' <- op choose unit; if b'' then return 5 else return 6)
   );
   f 2
+
+----------------------------------------------------------------
+-- 8. Parser
+

@@ -39,10 +39,12 @@ langDef = emptyDef
           , "|->"
           , "+"
           , "-"
+          , "*"
           , "++"
           , "=="
           , ">"
           , "->"
+          , "<>"
           ]
     names = [ "unit"
             , "true"
@@ -63,6 +65,7 @@ langDef = emptyDef
             , "RUN"
             ---------------
             , "head"
+            , "tail"
             , "concatMap"
             , "concatMapCutList"
             , "append"
@@ -75,6 +78,8 @@ langDef = emptyDef
             , "absurd"
             , "case"
             , "of"
+            , "read"
+            , "many1"
             ]
 
 lexer :: Tok.GenTokenParser String u (Except Err)

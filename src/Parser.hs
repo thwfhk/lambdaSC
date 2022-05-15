@@ -16,6 +16,7 @@ import Control.Applicative (empty)
 import Lexer
 import Syntax
 import Context
+import Evaluation (shiftC)
 
 
 type Parser a = ParsecT String Context (Except Err) a
@@ -279,6 +280,28 @@ getFunc2Parser (name, cons, b) = if b
   then try $ do v1 <- parseValue; reservedOp name; v2 <- parseValue; return $ cons v1 v2
   else do reserved name; v1 <- parseValue; v2 <- parseValue; return $ cons v1 v2
 
+-- ad-hoc parsers for the parser example
+parseOr :: Parser Comp
+parseOr = try $ do
+  c1 <- parseComp;
+  reservedOp "<>";
+  c2 <- parseComp;
+  return $ cor c1 c2
+
+parseMany1 :: Parser Comp
+parseMany1 = do
+  reserved "many1"
+  v <- parseValue
+  return $ cmany1 v
+
+cmany1 :: Value -> Comp
+cmany1 p = Do "a" (App p Vunit) $
+           Do "as" (cor (cmany1 p) (Return (Vstr ""))) $
+           Do "x" (ConsS (Var "a" 1) (Var "as" 0)) $
+           Return (Var "x" 0)
+
+cor :: Comp -> Comp -> Comp
+cor x y = Op "choose" Vunit ("b" :. If (Var "b" 0) (shiftC 1 x) (shiftC 1 y))
 ----------------------------------------------------------------
 -- * Handler Parser
 

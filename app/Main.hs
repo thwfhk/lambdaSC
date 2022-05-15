@@ -35,7 +35,7 @@ runFile = do
                              ++ " statements found"
                            let cs = cmds2comps cmds
                           --  putStrLn (show cs)
-                           putStrLn $ "[EVALUATION RESULTS 🥳]:"
+                           putStrLn "[EVALUATION RESULTS 🥳]:"
                           --  mapM (\ c -> putStrLn $ "  " ++ show (eval c)) cs
                            mapM (\ c -> putStrLn $ "  " ++ printComp (eval c)) cs
                            return ()

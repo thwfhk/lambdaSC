@@ -114,12 +114,14 @@ h # c = Handle h c
 builtInFunc1 :: [(String, Value -> Comp)]
 builtInFunc1 = 
   [ ("head", Head)
+  , ("tail", Tail)
   , ("fst", Fst)
   , ("snd", Snd)
   , ("absurd", Absurd)
   , ("newmem", Newmem)
   , ("open", Open)
   , ("close", Close)
+  , ("read", Read)
   ]
 
 -- (name, constructor, is infix)
@@ -133,6 +135,7 @@ builtInFunc2 =
   , ("++", Append, True)
   , ("+", Add, True)
   , ("-", Minus, True)
+  , ("*", Mul, True)
   , ("==", Eq, True)
   , (">", Lt, True)
   ]
