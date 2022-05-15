@@ -17,15 +17,15 @@ printValue v = case v of
   Vlist vs -> "[" ++ drop 2 (foldl (\s v -> s ++ ", " ++ printValue v) "" vs) ++ "]"
   Vsum e -> case e of Left x -> "left " ++ printValue x
                       Right x -> "right " ++ printValue x
-  Vret v -> "ret " ++ printValue v
-  Vflag v -> "flag " ++ printValue v
+  Vret v -> "opened " ++ printValue v
+  Vflag v -> "closed " ++ printValue v
   Vmem v -> "mem " ++ show v
   -- _ -> undefined 
 
 -- ideally, we only need "return"
 printComp :: Comp -> String
 printComp c = case c of
-  Return v -> "return " ++ printValue v
+  Return v -> "return " ++ printValue v -- TODO: when to add parentheses
   Op l v (y :. c) -> "op " ++ l ++ " " ++ printValue v
     ++ " (" ++ y ++ " . " ++ printComp c ++ ")"
   Sc l v (y :. c1) (z :. c2) -> "op " ++ l ++ " " ++ printValue v

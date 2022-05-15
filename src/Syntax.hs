@@ -22,7 +22,6 @@ data Value
   | Vunit
   | Vpair (Value, Value)
   | Vhandler Handler
-  -- Vhandler Handler
   -- extensions:
   | Vbool Bool
   | Vint Int
@@ -30,7 +29,7 @@ data Value
   | Vstr String   -- ^ for simplicity, we separate lists and strings
   | Vlist [Value]
   | Vsum (Either Value Value)
-  | Vret Value | Vflag Value
+  | Vret Value | Vflag Value -- opened, closed
   | Vmem (Memory Value)
   deriving (Show, Eq)
 
@@ -119,16 +118,21 @@ builtInFunc1 =
   , ("snd", Snd)
   , ("absurd", Absurd)
   , ("newmem", Newmem)
+  , ("open", Open)
+  , ("close", Close)
   ]
 
 -- (name, constructor, is infix)
 builtInFunc2 :: [(String, Value -> Value -> Comp, Bool)]
 builtInFunc2 =
   [ ("concatMap", ConcatMap, False)
+  , ("concatMapCutList", ConcatMapCutList, False)
   , ("update", Update, False)
   , ("retrieve", Retrieve, False)
+  , ("append", AppendCut, False)
   , ("++", Append, True)
   , ("+", Add, True)
+  , ("-", Minus, True)
   , ("==", Eq, True)
   , (">", Lt, True)
   ]

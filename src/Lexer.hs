@@ -38,6 +38,7 @@ langDef = emptyDef
           , "#" -- star
           , "|->"
           , "+"
+          , "-"
           , "++"
           , "=="
           , ">"
@@ -63,6 +64,12 @@ langDef = emptyDef
             ---------------
             , "head"
             , "concatMap"
+            , "concatMapCutList"
+            , "append"
+            , "open"
+            , "close"
+            , "opened"
+            , "closed"
             , "fst"
             , "snd"
             , "absurd"

@@ -61,6 +61,8 @@ parseValue = (whiteSpace >>) $ choice
   , int
   , parseChar
   , parseString
+  , parseOpened
+  , parseClosed
   , try parsePair
   , parseSum
   , parseList
@@ -123,7 +125,11 @@ parseSum :: Parser Value
 parseSum  =  (reserved "left" >> parseValue >>= return . Vsum . Left)
          <|> (reserved "right" >> parseValue >>= return . Vsum . Right)
 
--- TODO: parseCutlist
+parseOpened :: Parser Value
+parseOpened = reserved "opened" >> parseValue >>= return . Vret
+
+parseClosed :: Parser Value
+parseClosed = reserved "closed" >> parseValue >>= return . Vret
 
 ----------------------------------------------------------------
 -- * Computation Parser
