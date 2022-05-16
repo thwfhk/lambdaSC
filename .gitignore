@@ -1,3 +1,4 @@
-.DS_store
-.stack-work/
-*~
+.DS_Store
+*.hi
+*.o
+.stack-work
