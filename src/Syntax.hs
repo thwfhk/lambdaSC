@@ -1,9 +1,10 @@
-{-# LANGUAGE FlexibleContexts #-}
+{-# LANGUAGE FlexibleContexts, FlexibleInstances #-}
 
 module Syntax where
 
 import Control.Monad.Except
 import Data.List
+import qualified Data.Set as S
 
 type Err = String
 type Name = String
@@ -16,7 +17,7 @@ data Command
   deriving (Show, Eq)
 
 -- | Value syntax
-data Value 
+data Value
   = Var Name Int  -- ^ use De Bruijn Index
   | Lam Name Comp
   | Vunit
@@ -95,7 +96,7 @@ data Comp
   | ConcatMap Value Value
   | AppendCut Value Value
   | ConcatMapCutList Value Value
-  | Close Value | Open Value 
+  | Close Value | Open Value
   | Retrieve Value Value
   | Update Value Value
   | Newmem Value
@@ -106,13 +107,78 @@ infixr 8 #
 (#) :: Value -> Comp -> Comp
 h # c = Handle h c
 
+----------------------------------------------------------------
+-- type syntax
+
+-- value type
+data VType
+  = TVar Name
+  | TArr VType CType
+  | TUnit
+  | TPair VType VType
+  | THand CType CType
+  | TBool
+  | TEmpty
+  deriving (Show, Eq)
+
+data CType = CT VType EType
+  deriving (Show, Eq)
+
+data EType
+  = EVar Name
+  | EEmpty
+  | ECons Name EType
+  deriving (Show, Eq)
+
+-- type scheme
+data SType
+  = Mono VType
+  | Forall Name Kind SType
+  deriving (Show, Eq)
+
+data Kind
+  = ValueType
+  | EffectType
+  | CompType
+  deriving (Show, Eq, Ord)
+
+type Type = Either VType EType
+
+----------------------------------------------------------------
+-- Free type variables and their kinds
+
+class FreeVars a where
+  freeVars :: a -> S.Set (Name, Kind)
+
+instance FreeVars VType where
+  freeVars (TVar x) = S.singleton (x, ValueType)
+  freeVars (TArr t1 t2) = freeVars t1 `S.union` freeVars t2
+  freeVars (TPair t1 t2) = freeVars t1 `S.union` freeVars t2
+  freeVars (THand t1 t2) = freeVars t1 `S.union` freeVars t2
+  freeVars _ = S.empty
+
+instance FreeVars SType where
+  freeVars (Mono t) = freeVars t
+  freeVars (Forall x k t) = S.delete (x, k) (freeVars t)
+
+instance FreeVars CType where
+  freeVars (CT t1 t2) = freeVars t1 `S.union` freeVars t2
+
+instance FreeVars EType where
+  freeVars (EVar x) = S.singleton (x, EffectType)
+  freeVars (ECons _ t2) = freeVars t2
+  freeVars EEmpty = S.empty
+
+instance FreeVars Type where
+  freeVars (Left t) = freeVars t
+  freeVars (Right t) = freeVars t
 
 ----------------------------------------------------------------
 -- built-in functions
 
 -- (name, constructor)
 builtInFunc1 :: [(String, Value -> Comp)]
-builtInFunc1 = 
+builtInFunc1 =
   [ ("head", Head)
   , ("tail", Tail)
   , ("fst", Fst)
@@ -145,7 +211,7 @@ builtInFunc2 =
 -- Utilities
 
 cmds2comps :: [Command] -> [Comp]
-cmds2comps cmds = 
+cmds2comps cmds =
     let defs = filter isDef cmds
     in let runs = filter isRun cmds
     in map (\ (Run main) -> foldr (\(Def x v) c -> Let x v c) main defs) runs
@@ -161,10 +227,10 @@ cmds2comps cmds =
 clauses2handler :: MonadError Err m => [Clause] -> m Handler
 clauses2handler cls = do
     let hname = show cls
-    hreturn <- case (head cls) of
+    hreturn <- case head cls of
                 RetClause x c -> return (x, c)
                 _ -> throwError "No return clause"
-    hfwd    <- case (last cls) of
+    hfwd    <- case last cls of
                 FwdClause f p k c -> return (f, p, k, c)
                 _ -> throwError "No forwarding clause"
     let opCls  = takeWhile isOp (tail cls)
@@ -177,16 +243,16 @@ clauses2handler cls = do
       then throwError "Unknown or unordered clauses"
       else return ()
     let sclist = map (\(ScClause l _ _ _ _) -> l) scCls
-    let hsc    = \name -> 
+    let hsc    = \name ->
           do ScClause _ x p k c <- find (\(ScClause l _ _ _ _) -> l == name) scCls
              return (x, p, k, c)
     return $ Handler hname oplist sclist hreturn hop hsc hfwd
   where
     isOp x = case x of
-              OpClause _ _ _ _ -> True
+              OpClause {} -> True
               _ -> False
     isSc x = case x of
-              ScClause _ _ _ _ _ -> True
+              ScClause {} -> True
               _ -> False
 
 ----------------------------------------------------------------
