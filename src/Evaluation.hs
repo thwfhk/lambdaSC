@@ -12,7 +12,8 @@ eval c = case eval1 c of
 
 -- | Single step evaluation
 eval1 :: Comp -> Maybe Comp
-eval1 (App' vs) = return $ apps2app (head vs) (tail vs) -- desugar
+-- App' is impossible
+-- eval1 (App' vs) = return $ apps2app (head vs) (tail vs) -- desugar
 
 eval1 (App (Lam x c) v) = return . shiftC (-1) $ subst c [(shiftV 1 v, 0)]
 
@@ -213,7 +214,7 @@ subst :: Comp -> [(Value, Int)] -> Comp
 subst c [] = c
 subst c ((v, j) : as) = subst (substC c (v, j)) as
 
-apps2app :: Value -> [Value] -> Comp
-apps2app f []     = error "apps2app: [] is impossible"
-apps2app f [v]    = App f v
-apps2app f (v:vs) = Do "f" (App f v) (apps2app (Var "f" 0) $ map (shiftV 1) vs)
+-- apps2app :: Value -> [Value] -> Comp
+-- apps2app f []     = error "apps2app: [] is impossible"
+-- apps2app f [v]    = App f v
+-- apps2app f (v:vs) = Do "f" (App f v) (apps2app (Var "f" 0) $ map (shiftV 1) vs)

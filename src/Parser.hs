@@ -16,7 +16,7 @@ import Control.Applicative (empty)
 import Lexer
 import Syntax
 import Context
-import Evaluation (shiftC)
+import Evaluation (shiftC, shiftV)
 
 
 type Parser a = ParsecT String Context (Except Err) a
@@ -166,7 +166,14 @@ parseApp' :: Parser Comp
 parseApp' = do
   v <- parseValue
   vs <- many1 parseValue
-  return $ App' (v:vs)
+  -- return $ App' (v:vs)
+  return $ apps2app v vs -- desugar
+  where
+    apps2app :: Value -> [Value] -> Comp
+    apps2app f []     = error "apps2app: [] is impossible"
+    apps2app f [v]    = App f v
+    apps2app f (v:vs) = Do "f" (App f v) (apps2app (Var "f" 0) $ map (shiftV 1) vs)
+
 
 parseHandle :: Parser Comp
 parseHandle = do

@@ -118,6 +118,7 @@ data VType
   | TPair VType VType
   | THand CType CType
   | TBool
+  | TInt
   | TEmpty
   deriving (Show, Eq)
 

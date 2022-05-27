@@ -3,6 +3,7 @@
 module Substitution where
 
 import Syntax
+import Context
 import qualified Data.Map as M
 
 -- | Map variable names to value types or effect types
@@ -46,3 +47,8 @@ instance Applicable Type where
 (<^>) :: Theta -> Theta -> Theta
 s1 <^> s2 = M.map (apply s1) s2 `M.union` s1
 
+
+apply2bind :: Theta -> (a, Binding) -> (a, Binding)
+apply2bind s (x, b) = case b of
+  TypeBind t -> (x, TypeBind (apply s t))
+  NameBind -> error "[IMPOSSIBLE] TypeBind expected"
