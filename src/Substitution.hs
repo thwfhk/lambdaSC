@@ -44,6 +44,11 @@ instance Applicable Type where
   apply s (Left t) = Left $ apply s t
   apply s (Right t) = Right $ apply s t
 
+infixr <@>
+(<@>) :: Applicable a => Theta -> a -> a
+(<@>) = apply
+
+infixr <^>
 (<^>) :: Theta -> Theta -> Theta
 s1 <^> s2 = M.map (apply s1) s2 `M.union` s1
 
