@@ -52,3 +52,6 @@ apply2bind :: Theta -> (a, Binding) -> (a, Binding)
 apply2bind s (x, b) = case b of
   TypeBind t -> (x, TypeBind (apply s t))
   NameBind -> error "[IMPOSSIBLE] TypeBind expected"
+
+instance Applicable Context where
+  apply s ctx = map (apply2bind s) ctx

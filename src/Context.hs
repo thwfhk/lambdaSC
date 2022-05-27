@@ -18,7 +18,7 @@ data Binding
 type Context = [(Name, Binding)]
 
 sigma :: [(Name, (VType, VType))]
-sigma = [("or", (TUnit, TBool)), ("fail", (TUnit, TEmpty))]
+sigma = [("choose", (TUnit, TBool)), ("fail", (TUnit, TEmpty))]
 
 emptyctx :: Context
 emptyctx = []
@@ -41,18 +41,18 @@ name2index ctx name pos =
     Just ind -> Right ind
     Nothing -> Left $ "Unbounded variable " ++ name ++ " at " ++ show pos
 
--- not used yet
-name2entry :: [(Name, b)] -> Name -> Either Err (Name, b)
+name2entry :: Monad m => [(Name, b)] -> Name -> ExceptT Err m (Name, b)
 name2entry ctx name =
   case find ((== name). fst) ctx of
-    Just x -> Right x
-    Nothing -> Left $ "Unbounded variable \"" ++ name ++ "\""
+    Just x -> return x
+    Nothing -> throwError $ "name \"" ++ name ++ "\" not found"
 
-index2entry :: Monad m => [(Name, b)] -> Int -> ExceptT Err m (Name, b)
-index2entry ctx x
-  | length ctx > x = return $ ctx !! x
-  | otherwise = throwError $ "index " ++ show x
-              ++ " overflow (context length " ++ show (length ctx) ++ ")"
+-- not used yet
+-- index2entry :: Monad m => [(Name, b)] -> Int -> ExceptT Err m (Name, b)
+-- index2entry ctx x
+--   | length ctx > x = return $ ctx !! x
+--   | otherwise = throwError $ "index " ++ show x
+--               ++ " overflow (context length " ++ show (length ctx) ++ ")"
 
 
 index2type :: Monad m => Context -> Int -> ExceptT Err m SType

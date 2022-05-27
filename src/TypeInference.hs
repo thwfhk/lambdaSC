@@ -68,7 +68,9 @@ instance Unifiable VType where
     theta1 <- unify t1 t1'
     theta2 <- unify (apply theta1 t2) (apply theta1 t2')
     return $ theta2 <^> theta1
-  unify _ _ = undefined
+  unify t1 t2 | t1 == t2 = return M.empty
+  unify t1 t2 = trace ("unify vtype: " ++ show t1 ++ " || "  ++ show t2) undefined
+  -- unify _ _ = undefined
 
 instance Unifiable CType where
   unify (CT t1 e1) (CT t2 e2) = do
@@ -120,7 +122,7 @@ inferV (Vint _) = return (TInt, M.empty)
 inferV (Vpair (v1, v2)) = do
   (a1, theta1) <- inferV v1
   ctx <- get
-  let nctx = map (apply2bind theta1) ctx
+  let nctx = apply theta1 ctx
   put nctx
   (a2, theta2) <- inferV v2
   put ctx
@@ -133,7 +135,7 @@ inferC :: Comp -> W (CType, Theta)
 inferC (App v1 v2) = do
   (a1, theta1) <- inferV v1
   ctx <- get
-  let nctx = map (apply2bind theta1) ctx
+  let nctx = apply theta1 ctx
   put nctx
   (a2, theta2) <- inferV v2
   alpha <- freshV
@@ -147,7 +149,7 @@ inferC (Let x v c) = do
   (a1, theta1) <- inferV v
   sigma <- gen theta1 a1
   ctx <- get
-  let nctx = addBinding (map (apply2bind theta1) ctx) (x, TypeBind sigma)
+  let nctx = addBinding (apply theta1 ctx) (x, TypeBind sigma)
   put nctx
   (uC, theta2) <- inferC c
   put ctx
@@ -156,6 +158,28 @@ inferC (Return v) = do
   (a, theta) <- inferV v
   mu <- freshE
   return (CT a mu, theta)
+inferC (Do x c1 c2) = do
+  (CT a e, theta1) <- inferC c1
+  ctx <- get
+  let nctx = addBinding (apply theta1 ctx) (x, TypeBind (Mono a))
+  put nctx
+  (CT b f, theta2) <- inferC c2
+  theta3 <- unify (apply theta2 e) f
+  return (CT b (apply theta3 f), theta3 <^> theta2 <^> theta1)
+inferC (Op l v (y :. c)) = do
+  (_, (al, bl)) <- name2entry sigma l
+  (a, theta1) <- inferV v
+  theta2 <- unify (apply theta1 al) a
+  ctx <- get
+  let nctx = addBinding (apply theta2 (apply theta1 ctx)) (y, TypeBind (Mono bl))
+  put nctx
+  (CT a' e, theta3) <- inferC c
+  put ctx
+  mu <- freshE
+  theta4 <- unify e (ECons l mu)
+  return (apply theta4 $ CT a' e, theta4 <^> theta3 <^> theta2 <^> theta1)
+
+-- TODO: Maybe it is better to give built-in functions types and use T-App to type them
 inferC (Fst v) = do
   (a, theta1) <- inferV v
   alpha1 <- freshV
