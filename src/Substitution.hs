@@ -45,7 +45,7 @@ instance Applicable Type where
   apply s (Left t) = Left $ apply s t
   apply s (Right t) = Right $ apply s t
 
-infixr <@>
+infixr 7 <@> 
 (<@>) :: Applicable a => Theta -> a -> a
 (<@>) = apply
 

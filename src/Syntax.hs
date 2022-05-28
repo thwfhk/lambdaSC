@@ -117,17 +117,23 @@ h # c = Handle h c
 data VType
   = TVar Name
   | TArr VType CType
-  | TUnit
   | TPair VType VType
   | THand CType CType
+  | TList VType
+  | TUnit
+  | TString
   | TBool
   | TInt
   | TEmpty
-  | TList VType
   deriving (Show, Eq)
 
 data CType = CT VType EType
   deriving (Show, Eq)
+
+(<!>) = CT
+
+infixr 8 <->>
+(<->>) = TArr
 
 data EType
   = EVar Name
@@ -182,6 +188,7 @@ instance FreeVars VType where
   freeVars (TArr t1 t2) = freeVars t1 `S.union` freeVars t2
   freeVars (TPair t1 t2) = freeVars t1 `S.union` freeVars t2
   freeVars (THand t1 t2) = freeVars t1 `S.union` freeVars t2
+  freeVars (TList t) = freeVars t
   freeVars _ = S.empty
 
 instance FreeVars SType where
@@ -233,6 +240,22 @@ builtInFunc2 =
   , (">", Lt, True)
   ]
 
+-- 这里用相同的"alpha", "beta"应该会造成问题，一个地方同时用多个函数时，unification会以为"alpha"都是同一个
+builtInFuncType :: Name -> SType
+builtInFuncType s = case s of
+  "fst" -> fa s . fb s . fmu s . Mono $ TPair (a s) (b s) <->> a s <!> mu s
+  "head" -> fa s . fmu s . Mono $ TList (a s) <->> a s <!> mu s
+  "append" -> fa s . fmu s . Mono $ TPair (TList (a s)) (TList (a s)) <->> TList (a s) <!> mu s
+  "concatMap" -> fa s . fb s . fmu s . Mono $
+    TPair (TList (b s)) (b s <->> TList (a s) <!> mu s) <->> TList (a s) <!> mu s
+  oth -> error $ "builtInFuncTypes: no " ++ oth ++ " function"
+  where
+    fa s = Forall ("alpha_" ++ s) ValueType
+    fb s = Forall ("beta_" ++ s) ValueType
+    fmu s = Forall ("mu_" ++ s) EffectType
+    a s = TVar ("alpha_" ++ s)
+    b s = TVar ("beta_" ++ s)
+    mu s = EVar ("mu_" ++ s)
 
 ----------------------------------------------------------------
 -- Utilities

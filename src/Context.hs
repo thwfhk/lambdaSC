@@ -18,7 +18,10 @@ data Binding
 type Context = [(Name, Binding)]
 
 sigma :: [(Name, (VType, VType))]
-sigma = [("choose", (TUnit, TBool)), ("fail", (TUnit, TEmpty))]
+sigma =
+  [ ("choose", (TUnit, TBool))
+  , ("fail", (TUnit, TEmpty))
+  , ("once", (TUnit, TUnit)) ]
 
 emptyctx :: Context
 emptyctx = []
