@@ -62,7 +62,7 @@ class Unifiable a where
 
 instance Unifiable VType where
   unify (TVar x) (TVar y) | x == y = return M.empty
-  unify (TVar x) t | x `S.member` S.map fst (freeVars t) = 
+  unify (TVar x) t | x `S.member` S.map fst (freeVars t) =
     trace ("[[[ " ++ show (TVar x) ++ " ||| " ++ show t ++ " ]]]") $
     throwError
     "[unification fail] free value type variable appearing in the other type"
@@ -103,10 +103,17 @@ instance Unifiable EType where
   unify (ECons l t1) t2 = do
     -- traceM $ "unify ECone: " ++ show (ECons l t1) ++ " and " ++ show t2 
     (t3, theta1) <- findLabel l t2
-    -- TODO: tail condition
+    case tailEffType t1 of
+      Nothing -> return ()
+      Just x -> when (M.member x theta1) $ throwError "unify EType: tail condition fails"
     theta2 <- unify t1 t3
     return $ theta2 <^> theta1
   unify t2 (ECons l t1) = unify (ECons l t1) t2
+
+tailEffType :: EType -> Maybe Name
+tailEffType EEmpty = Nothing
+tailEffType (EVar x) = Just x
+tailEffType (ECons l t) = tailEffType t
 
 findLabel :: Name -> EType -> W (EType, Theta)
 findLabel x EEmpty = throwError $ "findLabel: no label " ++ x ++ " found"
@@ -181,7 +188,7 @@ inferV (Vhandler h) = do
   put nctx
   (uC', theta2) <- inferOpr h
   -- fwd clauses
-  let nctx = theta2 <@> theta1 <@> ctx 
+  let nctx = theta2 <@> theta1 <@> ctx
   put nctx
   (uC'', theta3) <- inferFwd h
   put ctx

@@ -20,6 +20,9 @@ runParseValue = runParserT parseValue emptyctx "CandyQwQ"
 runParseComp :: String -> String -> Except Err (Either ParseError Comp)
 runParseComp = runParserT parseComp emptyctx
 
+runParseTyOpt :: String -> String -> Except Err (Either ParseError TypeOpt)
+runParseTyOpt = runParserT parseTypeOpt emptyctx
+
 runParseClauses :: String -> Except Err (Either ParseError [Clause])
 runParseClauses = runParserT parseClauses emptyctx "CandyQwQ"
 
@@ -91,6 +94,21 @@ repl = do
       Right v -> print (show v)
   putStrLn ""
   repl
+
+test :: IO ()
+test = do
+  args <- getArgs
+  case args of
+    [sourceFileName, dstFileName] -> do
+      sourceFile <- readFile sourceFileName
+      putStrLn sourceFile
+      case runExcept (runParseTyOpt sourceFileName sourceFile) of
+        Left err -> print err
+        Right e -> case e of
+          Left err -> print err
+          Right v -> print (show v)
+    _ -> error "file error"
+  putStrLn ""
 
 main :: IO ()
 main = runFile

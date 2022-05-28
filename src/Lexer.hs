@@ -45,6 +45,7 @@ langDef = emptyDef
           , ">"
           , "->"
           , "<>"
+          , "<"
           ]
     names = [ "unit"
             , "true"
@@ -82,6 +83,11 @@ langDef = emptyDef
             , "many1"
             ---------------
             , "List"
+            , "Unit"
+            , "Int"
+            , "Bool"
+            , "String"
+            , "Empty"
             ]
 
 lexer :: Tok.GenTokenParser String u (Except Err)
@@ -125,6 +131,9 @@ whiteSpace = Tok.whiteSpace lexer
 
 commaSep :: Parsec String u a -> Parsec String u [a]
 commaSep = Tok.commaSep lexer
+
+semiSep :: Parsec String u a -> Parsec String u [a]
+semiSep = Tok.semiSep lexer
 
 identifier :: Parsec String u String
 identifier = Tok.identifier lexer

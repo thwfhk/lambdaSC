@@ -1,3 +1,6 @@
+{-# OPTIONS_GHC -Wno-unrecognised-pragmas #-}
+{-# HLINT ignore "Use <&>" #-}
+{-# HLINT ignore "Use <$>" #-}
 module Parser where
 
 import Debug.Trace
@@ -262,14 +265,14 @@ parseCase = do
   v <- parseValue
   reserved "of"
   reserved "left"
-  x <- identifier 
+  x <- identifier
   reserved "->"
   ctx <- getState
   setState $ addBinding ctx (x, NameBind)
   c1 <- parseComp
   setState ctx
   reserved "right"
-  y <- identifier 
+  y <- identifier
   reserved "->"
   ctx <- getState
   setState $ addBinding ctx (y, NameBind)
@@ -385,12 +388,100 @@ parseFwdClause = do
 -- * Type Parser
 
 parseTypeOpt :: Parser TypeOpt
+-- parseTypeOpt = do
+--   reservedOp "\\"
+--   x <- identifier
+--   dot
+--   reserved "List"
+--   _ <- identifier
+--   return (TAbs x (TList (TVar x)))
+  -- TODO: temporarily fix the shape to \ x . List x
 parseTypeOpt = do
   reservedOp "\\"
   x <- identifier
   dot
-  reserved "List"
-  _ <- identifier
-  return (TAbs x (TList (TVar x)))
-  -- TODO: temporarily fix the shape to \ x . List x
+  t <- parseVType
+  return (TAbs x t)
 
+parseVType :: Parser VType
+parseVType = (whiteSpace >>) $ choice
+  [ try parseTVar
+  , parseTUnit
+  , parseTInt
+  , parseTBool
+  , parseTEmpty
+  , parseTString
+  , parseTPair
+  , parseTList
+  , try parseArr -- should be the last one
+  ]
+
+-- NOTE: I didn't use De Bruijn index for types.
+-- So be careful about alpha renaming.
+
+parseTVar :: Parser VType
+parseTVar = do
+  var <- identifier
+  return $ TVar var
+
+parseTUnit :: Parser VType
+parseTUnit = reserved "Unit" >> return TUnit
+
+parseTInt :: Parser VType
+parseTInt = reserved "Int" >> return TInt
+
+parseTBool :: Parser VType
+parseTBool = reserved "Bool" >> return TBool
+
+parseTString :: Parser VType
+parseTString = reserved "String" >> return TString
+
+parseTEmpty :: Parser VType
+parseTEmpty = reserved "Empty" >> return TEmpty
+
+parseTPair :: Parser VType
+parseTPair = parens $ do
+  t1 <- parseVType
+  comma
+  t2 <- parseVType
+  return $ TPair t1 t2
+
+parseArr :: Parser VType
+parseArr = do
+  vt <- parseVType
+  reservedOp "->"
+  ct <- parseCType
+  return $ TArr vt ct
+
+parseTList :: Parser VType
+parseTList = do
+  reserved "List"
+  t <- parseVType
+  return $ TList t
+
+parseCType :: Parser CType
+parseCType = do
+  vt <- parseVType
+  reservedOp "!"
+  et <- parseEType
+  return $ vt <!> et
+
+parseEType :: Parser EType
+parseEType = do
+  reservedOp "<"
+  ls <- semiSep identifier
+  (do reservedOp ">"
+      return (foldl (flip ECons) EEmpty ls)
+   ) <|> (do reservedOp ";"
+             mu <- parseEVar
+             reservedOp ">"
+             return (foldl (flip ECons) mu ls)
+   )
+
+parseEEmpty :: Parser EType
+parseEEmpty = reservedOp "<" >> whiteSpace >> reservedOp ">" >> return EEmpty
+
+parseEVar :: Parser EType
+parseEVar = do
+  var <- identifier
+  return $ EVar var
