@@ -1,4 +1,6 @@
 {-# LANGUAGE FlexibleContexts, FlexibleInstances #-}
+{-# OPTIONS_GHC -Wno-unrecognised-pragmas #-}
+{-# HLINT ignore "Use when" #-}
 
 module Syntax where
 
@@ -46,6 +48,7 @@ data Clause
 -- | Handler syntax
 data Handler = Handler
   { hname   :: Name                                   -- ^ handler name
+  , carrier :: TypeOpt                                -- ^ type operator M
   , oplist  :: [Name]                                 -- ^ algberaic operations names
   , sclist  :: [Name]                                 -- ^ scoped operations names
   , hreturn :: (Name, Comp)                           -- ^ (x, c)
@@ -54,10 +57,10 @@ data Handler = Handler
   , hfwd    :: (Name, Name, Name, Comp)               -- ^ (f, p, k, c)
   }
 instance Show Handler where
-  show (Handler name _ _ _ _ _ _) = "handler{" ++ name ++ "}"
+  show (Handler name _ _ _ _ _ _ _) = "handler{" ++ name ++ "}"
 
 instance Eq Handler where
-  Handler x _ _ _ _ _ _ == Handler y _ _ _ _ _ _ = x == y
+  Handler x _ _ _ _ _ _ _ == Handler y _ _ _ _ _ _ _ = x == y
 
 infixr 0 :.
 data (Dot a b) = a :. b deriving (Show, Eq)
@@ -120,6 +123,7 @@ data VType
   | TBool
   | TInt
   | TEmpty
+  | TList VType
   deriving (Show, Eq)
 
 data CType = CT VType EType
@@ -145,6 +149,28 @@ data Kind
 
 type Type = Either VType EType
 
+data TypeOpt
+  = TAbs Name VType -- NOTE: fix the form to |lambda alpha . A|, i.e. kind |*->*|
+  deriving (Show, Eq)
+
+applyTyOpt :: TypeOpt -> VType -> VType
+applyTyOpt (TAbs x a) t = substT (x, t) a
+
+-- only need to substitute a value type into other types
+class SubstValueType a where
+  substT :: (Name, VType) -> a -> a
+
+instance SubstValueType VType where
+  substT (x, t) a = case a of
+    TVar y | x == y -> t
+    TVar y | x /= y -> TVar y
+    TArr t1 t2 -> TArr (substT (x, t) t1) (substT (x, t) t2)
+    TPair t1 t2 -> TPair (substT (x, t) t1) (substT (x, t) t2)
+    TList ts -> TList (substT (x, t) ts)
+    oth -> error $ "substT undefined for " ++ show oth
+
+instance SubstValueType CType where
+  substT oth = error $ "substT undefined for " ++ show oth
 ----------------------------------------------------------------
 -- Free type variables and their kinds
 
@@ -229,8 +255,8 @@ cmds2comps cmds =
 
 -- 在这里检查语句的种类和数量
 -- ret, op, op, op, sc, sc, sc, fwd
-clauses2handler :: MonadError Err m => [Clause] -> m Handler
-clauses2handler cls = do
+clauses2handler :: MonadError Err m => [Clause] -> TypeOpt -> m Handler
+clauses2handler cls tyopt = do
     let hname = show cls
     hreturn <- case head cls of
                 RetClause x c -> return (x, c)
@@ -251,7 +277,7 @@ clauses2handler cls = do
     let hsc    = \name ->
           do ScClause _ x p k c <- find (\(ScClause l _ _ _ _) -> l == name) scCls
              return (x, p, k, c)
-    return $ Handler hname oplist sclist hreturn hop hsc hfwd
+    return $ Handler hname tyopt oplist sclist hreturn hop hsc hfwd
   where
     isOp x = case x of
               OpClause {} -> True

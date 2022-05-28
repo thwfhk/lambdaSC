@@ -80,6 +80,8 @@ langDef = emptyDef
             , "of"
             , "read"
             , "many1"
+            ---------------
+            , "List"
             ]
 
 lexer :: Tok.GenTokenParser String u (Except Err)

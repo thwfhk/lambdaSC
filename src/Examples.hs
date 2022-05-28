@@ -5,6 +5,7 @@ import Evaluation
 import Prelude hiding ((<>))
 
 
+{-
 ----------------------------------------------------------------
 
 -- | The @lift@ syntactic sugar
@@ -461,3 +462,5 @@ handle_expr = hCut # (Do "c" (hToken # App expr Vunit) $
                       App (Var "c" 0) (Vstr "(2+5)*8"))
 -- >>> eval $ handle_expr
 -- Return (Vret (Vlist [Vpair (Vint 56,Vstr ""),Vpair (Vint 7,Vstr "*8")]))
+
+-}

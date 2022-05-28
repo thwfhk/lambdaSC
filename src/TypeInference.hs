@@ -74,8 +74,10 @@ instance Unifiable VType where
     theta1 <- unify t1 t1'
     theta2 <- unify (apply theta1 t2) (apply theta1 t2')
     return $ theta2 <^> theta1
+  unify (TList t) (TList t') = do
+    unify t t'
   unify t1 t2 | t1 == t2 = return M.empty
-  unify t1 t2 = trace ("unify vtype: " ++ show t1 ++ " || "  ++ show t2) undefined
+  unify t1 t2 = error $ "unify undefined for " ++ show t1 ++ " and "  ++ show t2
   -- unify _ _ = undefined
 
 instance Unifiable CType where
@@ -141,6 +143,17 @@ inferV (Vpair (v1, v2)) = do
   (a2, theta2) <- inferV v2
   put ctx
   return (TPair (apply theta1 a1) a2, theta2 <^> theta1)
+inferV (Vlist []) = do
+  alpha <- freshV
+  return (TList alpha, M.empty)
+inferV (Vlist (v:vs)) = do
+  (a1, theta1) <- inferV v
+  ctx <- get
+  put (theta1 <@> ctx)
+  (a2, theta2) <- inferV (Vlist vs)
+  put ctx
+  theta3 <- unify (TList (theta2 <@> a1)) a2
+  return (theta3 <@> a2, theta3 <^> theta2 <^> theta1)
 
 inferV (Vhandler h) = do
   alpha <- freshV
@@ -160,14 +173,14 @@ inferV (Vhandler h) = do
   let nctx = theta2 <@> theta1 <@> ctx 
   put nctx
   -- (uC'', theta3) <- inferFwd h
-  let theta3 = M.empty -- tmp
+  let theta3 = M.empty -- TODO: add inferFwd
   put ctx
-  -- let uD = apply theta3 . apply theta2 . apply theta1 $ CT alpha mu -- TODO: M alpha ! mu
-  let uD = theta3 <@> theta2 <@> theta1 <@> CT alpha mu -- TODO: M alpha ! mu
-  let uD = theta3 <@> theta2 <@> theta1 <@> CT alpha mu -- TODO: M alpha ! mu
+  let m = carrier h
+  -- traceM $ "carrier: " ++ show m ++ " ; result: " ++ show (applyTyOpt m alpha)
+  let uD = theta3 <@> theta2 <@> theta1 <@> CT (applyTyOpt m alpha) mu
   theta4 <- unifyList [(theta3 <@> theta2 <@> uC, uD), (theta3 <@> uC', uD)] -- , (uC'', uD)]
   let theta = theta4 <^> theta3 <^> theta2 <^> theta1
-  return (theta <@> THand (CT alpha f) (CT alpha mu), theta)
+  return (theta <@> THand (CT alpha f) (CT (applyTyOpt m alpha) mu), theta)
 
 inferV _ = undefined
 

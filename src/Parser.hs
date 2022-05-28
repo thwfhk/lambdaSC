@@ -309,15 +309,16 @@ cmany1 p = Do "a" (App p Vunit) $
 
 cor :: Comp -> Comp -> Comp
 cor x y = Op "choose" Vunit ("b" :. If (Var "b" 0) (shiftC 1 x) (shiftC 1 y))
+
 ----------------------------------------------------------------
 -- * Handler Parser
 
 parseHandler :: Parser Handler
 parseHandler = do
     reserved "handler"
+    tyopt <- brackets parseTypeOpt
     cls <- parseClauses
-    h <- clauses2handler cls
-    return h
+    clauses2handler cls tyopt
   <|> parens parseHandler
 
 parseClauses :: Parser [Clause]
@@ -379,3 +380,17 @@ parseFwdClause = do
   c <- parseComp
   setState ctx
   return $ FwdClause f p k c
+
+----------------------------------------------------------------
+-- * Type Parser
+
+parseTypeOpt :: Parser TypeOpt
+parseTypeOpt = do
+  reservedOp "\\"
+  x <- identifier
+  dot
+  reserved "List"
+  _ <- identifier
+  return (TAbs x (TList (TVar x)))
+  -- TODO: temporarily fix the shape to \ x . List x
+
