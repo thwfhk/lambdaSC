@@ -21,7 +21,10 @@ sigma :: [(Name, (VType, VType))]
 sigma =
   [ ("choose", (TUnit, TBool))
   , ("fail", (TUnit, TEmpty))
-  , ("once", (TUnit, TUnit)) ]
+  , ("once", (TUnit, TUnit))
+  , ("raise", (TString, TEmpty))
+  , ("catch", (TString, TBool))
+  ]
 
 emptyctx :: Context
 emptyctx = []

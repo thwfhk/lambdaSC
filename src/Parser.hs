@@ -413,6 +413,7 @@ parseVType = (whiteSpace >>) $ choice
   , parseTString
   , parseTPair
   , parseTList
+  , try parseTSum
   , try parseArr -- should be the last one
   ]
 
@@ -445,6 +446,13 @@ parseTPair = parens $ do
   comma
   t2 <- parseVType
   return $ TPair t1 t2
+
+parseTSum :: Parser VType
+parseTSum = do
+  reserved "Sum"
+  t1 <- parseVType
+  t2 <- parseVType
+  return $ TSum t1 t2
 
 parseArr :: Parser VType
 parseArr = do

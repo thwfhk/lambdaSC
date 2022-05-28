@@ -20,6 +20,7 @@ instance Applicable VType where
     _ -> error "expect a value type variable"
   apply s (TArr t1 t2) = TArr (apply s t1) (apply s t2)
   apply s (TPair t1 t2) = TPair (apply s t1) (apply s t2)
+  apply s (TSum t1 t2) = TSum (apply s t1) (apply s t2)
   apply s (THand t1 t2) = THand (apply s t1) (apply s t2)
   apply s (TList t) = TList (apply s t)
   apply s oth = oth

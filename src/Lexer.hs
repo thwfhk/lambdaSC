@@ -88,6 +88,7 @@ langDef = emptyDef
             , "Bool"
             , "String"
             , "Empty"
+            , "Sum"
             ]
 
 lexer :: Tok.GenTokenParser String u (Except Err)

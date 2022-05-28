@@ -118,6 +118,7 @@ data VType
   = TVar Name
   | TArr VType CType
   | TPair VType VType
+  | TSum VType VType
   | THand CType CType
   | TList VType
   | TUnit
@@ -172,7 +173,13 @@ instance SubstValueType VType where
     TVar y | x /= y -> TVar y
     TArr t1 t2 -> TArr (substT (x, t) t1) (substT (x, t) t2)
     TPair t1 t2 -> TPair (substT (x, t) t1) (substT (x, t) t2)
+    TSum t1 t2 -> TSum (substT (x, t) t1) (substT (x, t) t2)
     TList ts -> TList (substT (x, t) ts)
+    TString -> TString
+    TUnit -> TUnit
+    TBool -> TBool
+    TInt -> TInt
+    TEmpty -> TEmpty
     oth -> error $ "substT undefined for " ++ show oth
 
 instance SubstValueType CType where
@@ -187,6 +194,7 @@ instance FreeVars VType where
   freeVars (TVar x) = S.singleton (x, ValueType)
   freeVars (TArr t1 t2) = freeVars t1 `S.union` freeVars t2
   freeVars (TPair t1 t2) = freeVars t1 `S.union` freeVars t2
+  freeVars (TSum t1 t2) = freeVars t1 `S.union` freeVars t2
   freeVars (THand t1 t2) = freeVars t1 `S.union` freeVars t2
   freeVars (TList t) = freeVars t
   freeVars _ = S.empty

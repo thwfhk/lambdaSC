@@ -76,6 +76,10 @@ instance Unifiable VType where
     theta1 <- unify t1 t1'
     theta2 <- unify (apply theta1 t2) (apply theta1 t2')
     return $ theta2 <^> theta1
+  unify (TSum t1 t2) (TSum t1' t2') = do
+    theta1 <- unify t1 t1'
+    theta2 <- unify (apply theta1 t2) (apply theta1 t2')
+    return $ theta2 <^> theta1
   unify (THand t1 t2) (THand t1' t2') = do
     theta1 <- unify t1 t1'
     theta2 <- unify (apply theta1 t2) (apply theta1 t2')
@@ -172,6 +176,14 @@ inferV (Vlist (v:vs)) = do
   put ctx
   theta3 <- unify (TList (theta2 <@> a1)) a2
   return (theta3 <@> a2, theta3 <^> theta2 <^> theta1)
+inferV (Vsum (Left v)) = do
+  (a, theta) <- inferV v
+  alpha <- freshV
+  return (TSum a alpha, theta)
+inferV (Vsum (Right v)) = do
+  (a, theta) <- inferV v
+  alpha <- freshV
+  return (TSum alpha a, theta)
 
 inferV (Vhandler h) = do
   alpha <- freshV
@@ -345,6 +357,31 @@ inferC (If v c1 c2) = do
   (uD, theta4) <- inferC c2
   theta5 <- unify (theta4 <@> uC) uD
   return (theta5 <@> uD, theta5 <^> theta4 <^> theta3 <^> theta2 <^> theta1)
+inferC (Case v x c1 y c2) = do
+  (a, theta1) <- inferV v
+  alpha <- freshV
+  beta <- freshV
+  theta2 <- unify a (TSum alpha beta)
+  ctx <- get
+  put $ addBinding (theta2 <@> theta1 <@> ctx) (x, TypeBind . Mono $ theta2 <@> alpha)
+  (uC, theta3) <- inferC c1
+  put $ addBinding (theta3 <@> theta2 <@> theta1 <@> ctx) (x, TypeBind . Mono $ theta3 <@> theta2 <@> beta)
+  (uD, theta4) <- inferC c2
+  theta5 <- unify (theta4 <@> uC) uD
+  return (theta5 <@> uD, theta5 <^> theta4 <^> theta3 <^> theta2 <^> theta1)
+inferC (Eq v1 v2) = do
+  (a1, theta1) <- inferV v1
+  (a2, theta2) <- inferV v2
+  theta3 <- unify (theta2 <@> a1) a2
+  mu <- freshE
+  return (TBool <!> mu, theta3 <^> theta2 <^> theta1)
+inferC (Absurd v) = do
+  (a, theta1) <- inferV v
+  theta2 <- unify a TEmpty
+  alpha <- freshV
+  mu <- freshE
+  return (alpha <!> mu, theta2 <^> theta1)
+
 
 inferC (Op l v (y :. c)) = do
   (_, (al, bl)) <- name2entry sigma l
