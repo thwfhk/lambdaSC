@@ -396,12 +396,24 @@ parseTypeOpt :: Parser TypeOpt
 --   _ <- identifier
 --   return (TAbs x (TList (TVar x)))
   -- TODO: temporarily fix the shape to \ x . List x
-parseTypeOpt = do
-  reservedOp "\\"
-  x <- identifier
-  dot
-  t <- parseVType
-  return (TAbs x t)
+parseTypeOpt =
+  (do
+    reservedOp "\\"
+    x <- identifier
+    reservedOp ":"
+    k <- parseKind
+    dot
+    t <- parseTypeOpt
+    return $ TAbs x k t)
+  <|>
+  (do
+    t <- parseVType
+    return $ TNil t)
+
+parseKind :: Parser Kind
+parseKind =
+      (reservedOp "*" >> return ValueType)
+  <|> (reserved "Eff" >> return EffectType)
 
 parseVType :: Parser VType
 parseVType = (whiteSpace >>) $ choice
@@ -456,8 +468,9 @@ parseTSum = do
 
 parseArr :: Parser VType
 parseArr = do
+  reserved "Arr"
   vt <- parseVType
-  reservedOp "->"
+  -- reservedOp "->"
   ct <- parseCType
   return $ TArr vt ct
 
@@ -467,27 +480,40 @@ parseTList = do
   t <- parseVType
   return $ TList t
 
+-- binary :: String -> (a -> a -> a) -> Ex.Assoc -> Ex.Operator String u (Except Err) a
+-- binary s f = Ex.Infix (reservedOp s >> return f)
+
+
+-- typeOps :: [[Ex.Operator String u (Except Err) VType]]
+-- typeOps = [ [ binary "->" TArr Ex.AssocRight] ]
+
+-- parseVType :: Parser VType
+-- parseVType = whiteSpace >> Ex.buildExpressionParser typeOps parsePrimVType
+
+
 parseCType :: Parser CType
 parseCType = do
   vt <- parseVType
   reservedOp "!"
   et <- parseEType
   return $ vt <!> et
+  <|> parens parseCType
 
 parseEType :: Parser EType
-parseEType = do
-  reservedOp "<"
-  ls <- semiSep identifier
-  (do reservedOp ">"
-      return (foldl (flip ECons) EEmpty ls)
-   ) <|> (do reservedOp ";"
-             mu <- parseEVar
-             reservedOp ">"
-             return (foldl (flip ECons) mu ls)
-   )
+parseEType = parseEVar
+-- parseEType = do
+--   reservedOp "<"
+--   ls <- semiSep identifier
+--   (do reservedOp ">"
+--       return (foldl (flip ECons) EEmpty ls)
+--    ) <|> (do reservedOp ";"
+--              mu <- parseEVar
+--              reservedOp ">"
+--              return (foldl (flip ECons) mu ls)
+--    )
 
-parseEEmpty :: Parser EType
-parseEEmpty = reservedOp "<" >> whiteSpace >> reservedOp ">" >> return EEmpty
+-- parseEEmpty :: Parser EType
+-- parseEEmpty = reservedOp "<" >> whiteSpace >> reservedOp ">" >> return EEmpty
 
 parseEVar :: Parser EType
 parseEVar = do

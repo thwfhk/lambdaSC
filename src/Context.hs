@@ -24,6 +24,7 @@ sigma =
   , ("once", (TUnit, TUnit))
   , ("raise", (TString, TEmpty))
   , ("catch", (TString, TBool))
+  , ("inc", (TUnit, TInt))
   ]
 
 emptyctx :: Context

@@ -156,34 +156,82 @@ data Kind
 
 type Type = Either VType EType
 
+-- data TypeOpt
+--   = TAbs Name VType -- NOTE: fix the form to |lambda alpha . A|, i.e. kind |*->*|
+--   deriving (Show, Eq)
+
 data TypeOpt
-  = TAbs Name VType -- NOTE: fix the form to |lambda alpha . A|, i.e. kind |*->*|
+  = TAbs Name Kind TypeOpt
+  | TNil VType
   deriving (Show, Eq)
 
-applyTyOpt :: TypeOpt -> VType -> VType
-applyTyOpt (TAbs x a) t = substT (x, t) a
+applyTyOpt :: TypeOpt -> VType -> EType -> VType
+applyTyOpt ty vt et = let (TNil res) = applyTyOptE (applyTyOptV ty vt) et
+                      in res
+
+applyTyOptV :: TypeOpt -> VType -> TypeOpt
+applyTyOptV (TNil _) t = error "applyTyOpt : not applicable"
+applyTyOptV (TAbs x k t') t = if k /= ValueType then error "kind mismatch"
+                              else substVT (x, t) t'
+
+applyTyOptE :: TypeOpt -> EType -> TypeOpt
+applyTyOptE (TNil _) t = error "applyTyOpt : not applicable"
+applyTyOptE (TAbs x k t') t = if k /= EffectType then error "kind mismatch"
+                              else substET (x, t) t'
 
 -- only need to substitute a value type into other types
 class SubstValueType a where
-  substT :: (Name, VType) -> a -> a
+  substVT :: (Name, VType) -> a -> a
+class SubstEffectType a where
+  substET :: (Name, EType) -> a -> a
+
+instance SubstValueType TypeOpt where
+  substVT (x, t) (TNil t') = TNil $ substVT (x, t) t'
+  substVT (x, t) (TAbs y k t') | x == y = TAbs y k t'
+  substVT (x, t) (TAbs y k t') | x /= y = TAbs y k (substVT (x, t) t')
+
+instance SubstEffectType TypeOpt where
+  substET (x, t) (TNil t') = TNil $ substET (x, t) t'
+  substET (x, t) (TAbs y k t') | x == y = TAbs y k t'
+  substET (x, t) (TAbs y k t') | x /= y = TAbs y k (substET (x, t) t')
 
 instance SubstValueType VType where
-  substT (x, t) a = case a of
+  substVT (x, t) a = case a of
     TVar y | x == y -> t
     TVar y | x /= y -> TVar y
-    TArr t1 t2 -> TArr (substT (x, t) t1) (substT (x, t) t2)
-    TPair t1 t2 -> TPair (substT (x, t) t1) (substT (x, t) t2)
-    TSum t1 t2 -> TSum (substT (x, t) t1) (substT (x, t) t2)
-    TList ts -> TList (substT (x, t) ts)
+    TArr t1 (CT t2 e) -> TArr (substVT (x, t) t1) (CT (substVT (x, t) t2) e)
+    TPair t1 t2 -> TPair (substVT (x, t) t1) (substVT (x, t) t2)
+    TSum t1 t2 -> TSum (substVT (x, t) t1) (substVT (x, t) t2)
+    TList ts -> TList (substVT (x, t) ts)
     TString -> TString
     TUnit -> TUnit
     TBool -> TBool
     TInt -> TInt
     TEmpty -> TEmpty
-    oth -> error $ "substT undefined for " ++ show oth
+    oth -> error $ "substVT undefined for " ++ show oth
 
-instance SubstValueType CType where
-  substT oth = error $ "substT undefined for " ++ show oth
+instance SubstEffectType VType where
+  substET (x, t) a = case a of
+    TVar y -> TVar y
+    TArr t1 (CT t2 e) -> TArr (substET (x, t) t1) (CT (substET (x, t) t2) (substET (x, t) e))
+    TPair t1 t2 -> TPair (substET (x, t) t1) (substET (x, t) t2)
+    TSum t1 t2 -> TSum (substET (x, t) t1) (substET (x, t) t2)
+    TList ts -> TList (substET (x, t) ts)
+    TString -> TString
+    TUnit -> TUnit
+    TBool -> TBool
+    TInt -> TInt
+    TEmpty -> TEmpty
+    oth -> error $ "substET undefined for " ++ show oth
+
+instance SubstEffectType EType where
+  substET (x, t) a = case a of
+    EEmpty -> EEmpty
+    EVar y | x == y -> t
+    EVar y | x /= y -> EVar y
+    ECons l e -> ECons l (substET (x, t) e)
+    -- non-exhaustive ??
+
 ----------------------------------------------------------------
 -- Free type variables and their kinds
 
@@ -252,6 +300,7 @@ builtInFunc2 =
 builtInFuncType :: Name -> SType
 builtInFuncType s = case s of
   "fst" -> fa s . fb s . fmu s . Mono $ TPair (a s) (b s) <->> a s <!> mu s
+  "snd" -> fa s . fb s . fmu s . Mono $ TPair (a s) (b s) <->> b s <!> mu s
   "head" -> fa s . fmu s . Mono $ TList (a s) <->> a s <!> mu s
   "append" -> fa s . fmu s . Mono $ TPair (TList (a s)) (TList (a s)) <->> TList (a s) <!> mu s
   "concatMap" -> fa s . fb s . fmu s . Mono $

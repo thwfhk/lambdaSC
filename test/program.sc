@@ -1,4 +1,13 @@
-DEF hOnce = handler [\ x . List x]
+DEF hInc = handler [\ x : * . \ mu : Eff . Arr Int (x, Int) ! mu]
+  { return x   |-> return (\ s . return (x, s))
+  , op inc _ k |-> return (\ s . do s1 <- (s + 1); k s s1)
+  , fwd f p k  |-> return (\ s . f (
+      \ y . p y s ,
+      \ zs . do z <- fst zs; do s' <- snd zs; k z s'
+    ))
+  }
+
+DEF hOnce = handler [\ x : * . \ _ : Eff . List x]
   { return x      |-> return [x]
   -- , op fail _ _   |-> return []
   , op choose _ k |-> do xs <- k true; do ys <- k false ; xs ++ ys
@@ -11,7 +20,7 @@ DEF exceptMap = \ z . return (
                   right x -> k x
 )
 
-DEF hExcept = handler [\ x . Sum String x]
+DEF hExcept = handler [\ x : * . \ _ : Eff . Sum String x]
   { return x       |-> return (right x)
   , op raise e k   |-> return (left e)
   , sc catch e p k |->
@@ -31,6 +40,22 @@ RUN hOnce #
 RUN hExcept #
   sc catch "SAR" (b . if b then op raise "SAR" (y . absurd y)
                       else return 10)
+
+
+RUN hOnce # (do f <- hInc # (
+  op choose unit (b . if b then op inc unit else op inc unit)
+); f 0)
+
+RUN do f <- hInc # (hOnce # (
+  op choose unit (b . if b then op inc unit else op inc unit)
+)); f 0
+
+RUN hOnce # (do f <- hInc # (
+  sc once unit
+    (_ . op choose unit (b . if b then op inc unit else op inc unit ))
+    (x . op inc unit (y . x + y))
+); f 0)
+
 --------------------------------------------------------------
 
 -- DEF h1st = handler 

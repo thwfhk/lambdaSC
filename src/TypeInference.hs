@@ -205,10 +205,10 @@ inferV (Vhandler h) = do
   (uC'', theta3) <- inferFwd h
   put ctx
   let m = carrier h
-  let uD = theta3 <@> theta2 <@> theta1 <@> CT (applyTyOpt m alpha) mu
+  let uD = theta3 <@> theta2 <@> theta1 <@> CT (applyTyOpt m alpha mu) mu
   theta4 <- unifyList [(theta3 <@> theta2 <@> uC, uD), (theta3 <@> uC', uD), (uC'', uD)]
   let theta = theta4 <^> theta3 <^> theta2 <^> theta1
-  return (theta <@> THand (CT alpha f) (CT (applyTyOpt m alpha) mu), theta)
+  return (theta <@> THand (CT alpha f) (CT (applyTyOpt m alpha mu) mu), theta)
 
 inferV oth = error $ "inferV undefined for " ++ show oth
 
@@ -268,7 +268,7 @@ inferSc m ((l, (x, p, k, c)) : scs) = do
   ctx <- get
   let nctx = addBindings (theta1 <@> ctx)
         [ (x, TypeBind $ Mono al)
-        , (p, TypeBind . Mono $ TArr bl (CT (applyTyOpt m beta) mu))
+        , (p, TypeBind . Mono $ TArr bl (CT (applyTyOpt m beta mu) mu))
         , (k, TypeBind . Mono $ TArr beta (CT alpha mu)) ]
   put nctx
   (uC, theta2) <- inferC c
@@ -284,26 +284,34 @@ inferFwd h = do
   alpha <- freshV
   beta <- freshV
   gamma <- freshV
+  gamma' <- freshV
   mu <- freshE
   alpha' <- freshV
-  let ap  = alpha <->> applyTyOpt m beta <!> mu
+  -- traceM $ "look: " ++ getVarName alpha ++ " " ++ getVarName alpha'
+  let ap  = alpha <->> applyTyOpt m beta mu <!> mu
   let ap' = alpha <->> gamma <!> mu
-  let ak  = beta <->> applyTyOpt m alpha' <!> mu
-  let ak' = gamma <->> applyTyOpt m alpha' <!> mu
+  let ak  = beta <->> applyTyOpt m alpha' mu <!> mu
+  -- let ak' = gamma <->> applyTyOpt m alpha' mu <!> mu
+  let ak' = gamma <->> gamma' <!> mu
   ctx <- get
   let nctx = addBindings ctx
-        [ (f, TypeBind . Forall (getVarName gamma) ValueType . Mono
-                $ TPair ap' ak' <->> applyTyOpt m alpha' <!> mu)
+        [ (f, TypeBind . Forall (getVarName gamma) ValueType . Forall (getVarName gamma') ValueType . Mono
+                $ TPair ap' ak' <->> gamma' <!> mu)
         , (p, TypeBind $ Mono ap)
         , (k, TypeBind $ Mono ak) ] -- NOTE: the order f, p, k cannot be changed!
   put nctx
+  -- traceM "hi!!!!!!!!!"
   (uC, theta1) <- inferC cf
+  -- traceM "end!!!!!!!!!"
   put ctx
-  theta2 <- unify uC (theta1 <@> applyTyOpt m alpha' <!> mu)
+  -- traceM $ "### " ++ show uC ++ "\n### " ++ show (theta1 <@> applyTyOpt m alpha' mu <!> mu)
+  -- traceM $ "m: " ++ show m
+  theta2 <- unify uC (theta1 <@> applyTyOpt m alpha' mu <!> mu)
   return (theta2 <@> uC, theta2 <^> theta1)
 
 inferC :: Comp -> W (CType, Theta)
 inferC (App v1 v2) = do
+  -- traceM $ "app: " ++ show v1 ++ " | "  ++ show v2
   (a1, theta1) <- inferV v1
   ctx <- get
   put (theta1 <@> ctx)
@@ -312,7 +320,10 @@ inferC (App v1 v2) = do
   alpha <- freshV
   mu <- freshE
   -- traceM $ "[inferC App]: " ++ show (theta2 <@> a1) ++ " || " ++ show (TArr a2 (CT alpha mu))
+  -- traceM $ "before unify: " ++ show v1
+  -- when (show v1 == "Var \"f\" 3") $ traceM $ "### " ++ show (theta2 <@> a1) ++ "\n### " ++ show (TArr a2 (CT alpha mu))
   theta3 <- unify (theta2 <@> a1) (TArr a2 (CT alpha mu))
+  -- traceM $ "endapp: " ++ show v1
   -- traceM $ "trace: " ++ show (apply theta2 a1) ++ " ||| " ++ show (TArr a2 (CT alpha mu))
   -- traceM $ show (M.lookup "$4" theta3) ++ " ||| " ++ show (M.lookup "$2" theta3)
   return (apply theta3 (CT alpha mu), theta3 <^> theta2 <^> theta1)
@@ -335,6 +346,7 @@ inferC (Do x c1 c2) = do
   let nctx = addBinding (apply theta1 ctx) (x, TypeBind (Mono a))
   put nctx
   (CT b f, theta2) <- inferC c2
+  put ctx
   theta3 <- unify (apply theta2 e) f
   return (CT b (apply theta3 f), theta3 <^> theta2 <^> theta1)
 inferC (Handle v c) = do
@@ -371,10 +383,23 @@ inferC (Case v x c1 y c2) = do
   return (theta5 <@> uD, theta5 <^> theta4 <^> theta3 <^> theta2 <^> theta1)
 inferC (Eq v1 v2) = do
   (a1, theta1) <- inferV v1
+  ctx <- get
+  put $ theta1 <@> ctx
   (a2, theta2) <- inferV v2
   theta3 <- unify (theta2 <@> a1) a2
+  put ctx
   mu <- freshE
   return (TBool <!> mu, theta3 <^> theta2 <^> theta1)
+inferC (Add v1 v2) = do
+  (a1, theta1) <- inferV v1
+  theta2 <- unify a1 TInt
+  ctx <- get
+  put $ theta2 <@> theta1 <@> ctx
+  (a2, theta3) <- inferV v2
+  put ctx
+  theta4 <- unify a2 TInt
+  mu <- freshE
+  return (TInt <!> mu, theta4 <^> theta3 <^> theta2 <^> theta1)
 inferC (Absurd v) = do
   (a, theta1) <- inferV v
   theta2 <- unify a TEmpty
@@ -421,7 +446,8 @@ inferC (Sc l v (y :. c1) (z :. c2)) = do
 --   theta2 <- unify a (TPair alpha1 alpha2)
 --   mu <- freshE
 --   return (CT (apply theta2 alpha1) mu, theta2 <^> theta1)
-inferC (Fst v) = inferFunc1 "Fst" v
+inferC (Fst v) = inferFunc1 "fst" v
+inferC (Snd v) = inferFunc1 "snd" v
 inferC (Head v) = inferFunc1 "head" v
 inferC (Append v1 v2) = inferFunc2 "append" v1 v2
 inferC (ConcatMap v1 v2) = inferFunc2 "concatMap" v1 v2
@@ -431,6 +457,8 @@ inferC oth = error $ "inferC undefined for " ++ show oth
 inferFunc1 :: Name -> Value -> W (CType, Theta)
 inferFunc1 name v = do
   (a, theta1) <- inferV v
+  -- when (name == "fst") $ traceM $ "fst : " ++ show a
+  -- when (name == "snd") $ traceM $ "snd : " ++ show a
   ctx <- get
   put (theta1 <@> ctx)
   -- (uC, theta2) <- inferC $ App (Var name 0) v
