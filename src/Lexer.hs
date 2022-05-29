@@ -46,6 +46,7 @@ langDef = emptyDef
           , "->"
           , "<>"
           , "<"
+          , "|"
           ]
     names = [ "unit"
             , "true"

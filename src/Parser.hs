@@ -423,10 +423,11 @@ parseVType = (whiteSpace >>) $ choice
   , parseTBool
   , parseTEmpty
   , parseTString
-  , parseTPair
+  , try parseTPair
   , parseTList
   , try parseTSum
   , try parseArr -- should be the last one
+  , try $ parens parseVType
   ]
 
 -- NOTE: I didn't use De Bruijn index for types.
@@ -500,20 +501,31 @@ parseCType = do
   <|> parens parseCType
 
 parseEType :: Parser EType
-parseEType = parseEVar
--- parseEType = do
---   reservedOp "<"
---   ls <- semiSep identifier
---   (do reservedOp ">"
---       return (foldl (flip ECons) EEmpty ls)
---    ) <|> (do reservedOp ";"
---              mu <- parseEVar
---              reservedOp ">"
---              return (foldl (flip ECons) mu ls)
---    )
+parseEType = (whiteSpace >>) $ choice
+  [ parseEVar
+  , try parseEEmpty
+  , try parseEClose
+  , try parseEOpen
+  ]
 
--- parseEEmpty :: Parser EType
--- parseEEmpty = reservedOp "<" >> whiteSpace >> reservedOp ">" >> return EEmpty
+parseEEmpty :: Parser EType
+parseEEmpty = reservedOp "<" >> whiteSpace >> reservedOp ">" >> return EEmpty
+
+parseEClose :: Parser EType
+parseEClose = do
+  reservedOp "<"
+  ls <- semiSep identifier
+  reservedOp ">"
+  return (foldl (flip ECons) EEmpty ls)
+
+parseEOpen :: Parser EType
+parseEOpen = do
+  reservedOp "<"
+  ls <- semiSep identifier
+  reservedOp "|"
+  mu <- parseEVar
+  reservedOp ">"
+  return (foldl (flip ECons) mu ls)
 
 parseEVar :: Parser EType
 parseEVar = do

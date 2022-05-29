@@ -1,4 +1,4 @@
-DEF hInc = handler [\ x : * . \ mu : Eff . Arr Int (x, Int) ! mu]
+DEF hInc = handler [\ x : * . \ mu : Eff . Arr Int ((x, Int) ! mu)]
   { return x   |-> return (\ s . return (x, s))
   , op inc _ k |-> return (\ s . do s1 <- (s + 1); k s s1)
   , fwd f p k  |-> return (\ s . f (
@@ -39,7 +39,7 @@ RUN hOnce #
 
 RUN hExcept #
   sc catch "SAR" (b . if b then op raise "SAR" (y . absurd y)
-                      else return 10)
+                      else return "SAR is catched!")
 
 
 RUN hOnce # (do f <- hInc # (

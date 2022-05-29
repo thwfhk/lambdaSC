@@ -74,13 +74,13 @@ runFile = do
             case ts of
               Left err -> putStrLn $ "[TYPE INFERENCE FAILED 😵]: " ++ show err
               Right ts -> do putStrLn "[TYPE INFERENCE SUCCESS 🥳]: "
-                             mapM (\t -> putStrLn $ "  " ++ show t) ts;
+                             mapM (\t -> putStrLn $ "  " ++ printt t) ts;
                              return ()
             let cs = cmds2comps cmds
             --  putStrLn (show cs)
             putStrLn "[EVALUATION RESULTS 🥳]:"
             --  mapM (\ c -> putStrLn $ "  " ++ show (eval c)) cs
-            mapM (\ c -> putStrLn $ "  " ++ printComp (eval c)) cs
+            mapM (\ c -> putStrLn $ "  " ++ printt (eval c)) cs
             return ()
     _ -> putStrLn "file names error, enter REPL" >> repl
 
