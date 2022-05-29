@@ -433,10 +433,10 @@ inferC (Sc l v (y :. c1) (z :. c2)) = do
   theta4 <- unify e (ECons l mu)
   let nctx = addBinding (theta4 <@> theta3 <@> theta2 <@> theta1 <@> ctx) (z, TypeBind (Mono b))
   put nctx
-  (CT a f, theta5) <- inferC c2
+  (CT a' f, theta5) <- inferC c2
   put ctx
   theta6 <- unify f (theta4 <@> theta5 <@> ECons l mu)
-  return (theta6 <@> a <!> f, theta6 <^> theta5 <^> theta4 <^> theta3 <^> theta2 <^> theta1)
+  return (theta6 <@> a' <!> f, theta6 <^> theta5 <^> theta4 <^> theta3 <^> theta2 <^> theta1)
 
 
 -- inferC (Fst v) = do
