@@ -1,3 +1,6 @@
+{-# OPTIONS_GHC -Wno-unrecognised-pragmas #-}
+{-# HLINT ignore "Use <&>" #-}
+{-# HLINT ignore "Use <$>" #-}
 module Parser where
 
 import Debug.Trace
@@ -16,7 +19,7 @@ import Control.Applicative (empty)
 import Lexer
 import Syntax
 import Context
-import Evaluation (shiftC)
+import Evaluation (shiftC, shiftV)
 
 
 type Parser a = ParsecT String Context (Except Err) a
@@ -166,7 +169,14 @@ parseApp' :: Parser Comp
 parseApp' = do
   v <- parseValue
   vs <- many1 parseValue
-  return $ App' (v:vs)
+  -- return $ App' (v:vs)
+  return $ apps2app v vs -- desugar
+  where
+    apps2app :: Value -> [Value] -> Comp
+    apps2app f []     = error "apps2app: [] is impossible"
+    apps2app f [v]    = App f v
+    apps2app f (v:vs) = Do "f" (App f v) (apps2app (Var "f" 0) $ map (shiftV 1) vs)
+
 
 parseHandle :: Parser Comp
 parseHandle = do
@@ -255,14 +265,14 @@ parseCase = do
   v <- parseValue
   reserved "of"
   reserved "left"
-  x <- identifier 
+  x <- identifier
   reserved "->"
   ctx <- getState
   setState $ addBinding ctx (x, NameBind)
   c1 <- parseComp
   setState ctx
   reserved "right"
-  y <- identifier 
+  y <- identifier
   reserved "->"
   ctx <- getState
   setState $ addBinding ctx (y, NameBind)
@@ -302,15 +312,16 @@ cmany1 p = Do "a" (App p Vunit) $
 
 cor :: Comp -> Comp -> Comp
 cor x y = Op "choose" Vunit ("b" :. If (Var "b" 0) (shiftC 1 x) (shiftC 1 y))
+
 ----------------------------------------------------------------
 -- * Handler Parser
 
 parseHandler :: Parser Handler
 parseHandler = do
     reserved "handler"
+    tyopt <- brackets parseTypeOpt
     cls <- parseClauses
-    h <- clauses2handler cls
-    return h
+    clauses2handler cls tyopt
   <|> parens parseHandler
 
 parseClauses :: Parser [Clause]
@@ -372,3 +383,166 @@ parseFwdClause = do
   c <- parseComp
   setState ctx
   return $ FwdClause f p k c
+
+----------------------------------------------------------------
+-- * Type Parser
+
+parseTypeOpt :: Parser TypeOpt
+-- parseTypeOpt = do
+--   reservedOp "\\"
+--   x <- identifier
+--   dot
+--   reserved "List"
+--   _ <- identifier
+--   return (TAbs x (TList (TVar x)))
+  -- TODO: temporarily fix the shape to \ x . List x
+parseTypeOpt =
+  (do
+    reservedOp "\\"
+    x <- identifier
+    reservedOp ":"
+    k <- parseKind
+    dot
+    t <- parseTypeOpt
+    return $ TAbs x k t)
+  <|>
+  (do
+    t <- parseVType
+    return $ TNil t)
+
+parseKind :: Parser Kind
+parseKind =
+      (reservedOp "*" >> return ValueType)
+  <|> (reserved "Eff" >> return EffectType)
+
+parseVType :: Parser VType
+parseVType = (whiteSpace >>) $ choice
+  [ try parseTVar
+  , parseTUnit
+  , parseTInt
+  , parseTBool
+  , parseTEmpty
+  , parseTString
+  , try parseTPair
+  , parseTList
+  , parseTCutList
+  , parseMem
+  , try parseTSum
+  , try parseArr -- should be the last one
+  , try $ parens parseVType
+  ]
+
+-- NOTE: I didn't use De Bruijn index for types.
+-- So be careful about alpha renaming.
+
+parseTVar :: Parser VType
+parseTVar = do
+  var <- identifier
+  return $ TVar var
+
+parseTUnit :: Parser VType
+parseTUnit = reserved "Unit" >> return TUnit
+
+parseTInt :: Parser VType
+parseTInt = reserved "Int" >> return TInt
+
+parseTBool :: Parser VType
+parseTBool = reserved "Bool" >> return TBool
+
+parseTString :: Parser VType
+parseTString = reserved "String" >> return TString
+
+parseTEmpty :: Parser VType
+parseTEmpty = reserved "Empty" >> return TEmpty
+
+parseTPair :: Parser VType
+parseTPair = parens $ do
+  t1 <- parseVType
+  comma
+  t2 <- parseVType
+  return $ TPair t1 t2
+
+parseTSum :: Parser VType
+parseTSum = do
+  reserved "Sum"
+  t1 <- parseVType
+  t2 <- parseVType
+  return $ TSum t1 t2
+
+parseArr :: Parser VType
+parseArr = do
+  reserved "Arr"
+  vt <- parseVType
+  -- reservedOp "->"
+  ct <- parseCType
+  return $ TArr vt ct
+
+parseMem :: Parser VType
+parseMem = do
+  reserved "Mem"
+  t1 <- parseVType
+  t2 <- parseVType
+  return $ TMem t1 t2
+
+parseTList :: Parser VType
+parseTList = do
+  reserved "List"
+  t <- parseVType
+  return $ TList t
+
+parseTCutList :: Parser VType
+parseTCutList = do
+  reserved "CutList"
+  t <- parseVType
+  return $ TCutList t
+
+-- binary :: String -> (a -> a -> a) -> Ex.Assoc -> Ex.Operator String u (Except Err) a
+-- binary s f = Ex.Infix (reservedOp s >> return f)
+
+
+-- typeOps :: [[Ex.Operator String u (Except Err) VType]]
+-- typeOps = [ [ binary "->" TArr Ex.AssocRight] ]
+
+-- parseVType :: Parser VType
+-- parseVType = whiteSpace >> Ex.buildExpressionParser typeOps parsePrimVType
+
+
+parseCType :: Parser CType
+parseCType = do
+  vt <- parseVType
+  reservedOp "!"
+  et <- parseEType
+  return $ vt <!> et
+  <|> parens parseCType
+
+parseEType :: Parser EType
+parseEType = (whiteSpace >>) $ choice
+  [ parseEVar
+  , try parseEEmpty
+  , try parseEClose
+  , try parseEOpen
+  ]
+
+parseEEmpty :: Parser EType
+parseEEmpty = reservedOp "<" >> whiteSpace >> reservedOp ">" >> return EEmpty
+
+parseEClose :: Parser EType
+parseEClose = do
+  reservedOp "<"
+  ls <- semiSep identifier
+  reservedOp ">"
+  return (foldl (flip ECons) EEmpty ls)
+
+parseEOpen :: Parser EType
+parseEOpen = do
+  reservedOp "<"
+  ls <- semiSep identifier
+  reservedOp "|"
+  mu <- parseEVar
+  reservedOp ">"
+  return (foldl (flip ECons) mu ls)
+
+parseEVar :: Parser EType
+parseEVar = do
+  var <- identifier
+  return $ EVar var

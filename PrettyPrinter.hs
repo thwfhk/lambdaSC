@@ -1,57 +1,176 @@
 module PrettyPrinter where
 
 import Syntax
+import Control.Monad.State
+import qualified Data.Map as M
+import Control.Monad.RWS (All(getAll))
 
--- ideally, we only need printValue to show the results
-printValue :: Value -> String
-printValue v = case v of
-  Var x _ -> x
-  Lam x c -> "\\ " ++ x ++ " . " ++ printComp c
-  Vunit   -> "unit"
-  Vpair (v1, v2) -> "(" ++ printValue v1 ++ ", " ++ printValue v2 ++ ")"
-  Vhandler h -> printHandler h
-  Vbool b -> if b then "true" else "false"
-  Vint n -> show n
-  Vchar c -> show c
-  Vstr s -> s
-  Vlist vs -> "[" ++ drop 2 (foldl (\s v -> s ++ ", " ++ printValue v) "" vs) ++ "]"
-  Vsum e -> case e of Left x -> "left " ++ printValue x
-                      Right x -> "right " ++ printValue x
-  Vret v -> "opened " ++ printValue v
-  Vflag v -> "closed " ++ printValue v
-  Vmem v -> "mem " ++ show v
+addParens :: String -> String
+addParens s = "(" ++ s ++ ")"
+
+class MyPrinter a where
+  printt :: a -> String
+
+-- ideally, we only need printt to show the results
+instance MyPrinter Value where
+  printt v = case v of
+    Var x _ -> x
+    Lam x c -> "\\ " ++ x ++ " . " ++ printt c
+    Vunit   -> "unit"
+    Vpair (v1, v2) -> "(" ++ printt v1 ++ ", " ++ printt v2 ++ ")"
+    Vhandler h -> printt h
+    Vbool b -> if b then "true" else "false"
+    Vint n -> show n
+    Vchar c -> show c
+    Vstr s -> "\"" ++ s ++ "\""
+    Vlist vs -> "[" ++ drop 2 (foldl (\s v -> s ++ ", " ++ printt v) "" vs) ++ "]"
+    Vsum e -> case e of Left x -> "left " ++ printt x
+                        Right x -> "right " ++ printt x
+    Vret v -> "opened " ++ printt v
+    Vflag v -> "closed " ++ printt v
+    Vmem v -> "mem " ++ show v
   -- _ -> undefined 
 
 -- ideally, we only need "return"
-printComp :: Comp -> String
-printComp c = case c of
-  Return v -> "return " ++ printValue v -- TODO: when to add parentheses
-  Op l v (y :. c) -> "op " ++ l ++ " " ++ printValue v
-    ++ " (" ++ y ++ " . " ++ printComp c ++ ")"
-  Sc l v (y :. c1) (z :. c2) -> "op " ++ l ++ " " ++ printValue v
-    ++ " (" ++ y ++ " . " ++ printComp c1 ++ ")"
-    ++ " (" ++ z ++ " . " ++ printComp c2 ++ ")"
-  Handle v c -> printValue v ++ " # " ++ printComp c
-  Do x c1 c2 -> "do " ++ x ++ " <- " ++ printComp c1 ++ "; " ++ printComp c2
-  App v1 v2 -> printValue v1 ++ " " ++ printValue v2
-  Let x v c -> "let " ++ x ++ " = " ++ printValue v ++ " in " ++ printComp c
-  App' _ -> error "App' is impossible"
-  If v c1 c2 -> "if " ++ printValue v ++ " then " ++ printComp c1 ++ " else " ++ printComp c2
-  Case v x c1 y c2 -> "case " ++ printValue v ++ " of "
-    ++ "left " ++ x ++ " -> " ++ printComp c1 ++ "\n"
-    ++ "right " ++ y ++ " -> " ++ printComp c2
-  Eq v1 v2 -> printValue v1 ++ " = " ++ printValue v2
-  Lt v1 v2 -> printValue v1 ++ " > " ++ printValue v2
-  Add v1 v2 -> printValue v1 ++ " + " ++ printValue v2
-  Append v1 v2 -> printValue v1 ++ " ++ " ++ printValue v2
-  ConcatMap v1 v2 -> "concatMap " ++ printValue v1 ++ " " ++ printValue v2
-  Retrieve v1 v2 -> "retrieve " ++ printValue v1 ++ " " ++ printValue v2
-  Update v1 v2 -> "update " ++ printValue v1 ++ " " ++ printValue v2
-  Head v -> "head " ++ printValue v
-  Fst v -> "fst " ++ printValue v
-  Snd v -> "snd " ++ printValue v
-  _ -> undefined 
+instance MyPrinter Comp where
+  printt c = case c of
+    Return v -> "return " ++ printt v -- TODO: when to add parentheses
+    Op l v (y :. c) -> "op " ++ l ++ " " ++ printt v
+      ++ " (" ++ y ++ " . " ++ printt c ++ ")"
+    Sc l v (y :. c1) (z :. c2) -> "op " ++ l ++ " " ++ printt v
+      ++ " (" ++ y ++ " . " ++ printt c1 ++ ")"
+      ++ " (" ++ z ++ " . " ++ printt c2 ++ ")"
+    Handle v c -> printt v ++ " # " ++ printt c
+    Do x c1 c2 -> "do " ++ x ++ " <- " ++ printt c1 ++ "; " ++ printt c2
+    App v1 v2 -> printt v1 ++ " " ++ printt v2
+    Let x v c -> "let " ++ x ++ " = " ++ printt v ++ " in " ++ printt c
+    App' _ -> error "App' is impossible"
+    If v c1 c2 -> "if " ++ printt v ++ " then " ++ printt c1 ++ " else " ++ printt c2
+    Case v x c1 y c2 -> "case " ++ printt v ++ " of "
+      ++ "left " ++ x ++ " -> " ++ printt c1 ++ "\n"
+      ++ "right " ++ y ++ " -> " ++ printt c2
+    Eq v1 v2 -> printt v1 ++ " = " ++ printt v2
+    Lt v1 v2 -> printt v1 ++ " > " ++ printt v2
+    Add v1 v2 -> printt v1 ++ " + " ++ printt v2
+    Append v1 v2 -> printt v1 ++ " ++ " ++ printt v2
+    ConcatMap v1 v2 -> "concatMap " ++ printt v1 ++ " " ++ printt v2
+    Retrieve v1 v2 -> "retrieve " ++ printt v1 ++ " " ++ printt v2
+    Update v1 v2 -> "update " ++ printt v1 ++ " " ++ printt v2
+    Head v -> "head " ++ printt v
+    Fst v -> "fst " ++ printt v
+    Snd v -> "snd " ++ printt v
+    _ -> undefined 
+  
 
+instance MyPrinter Handler where
+  printt h = "I don't want to print a handler :)"
 
-printHandler :: Handler -> String
-printHandler h = "I don't want to print a handler :)"
+class MyTypePrinter a where
+  printy :: a -> State (M.Map String String, [String]) String
+
+instance MyTypePrinter VType where
+  printy vt = case vt of
+    TVar x -> do
+      (m, alphabet) <- get
+      case M.lookup x m of
+        Just y -> return y
+        Nothing -> do let (c:res) = alphabet
+                      put (M.insert x c m, res)
+                      return c
+    TArr t1 t2 -> do
+      s1 <- case t1 of
+              TArr _ _ -> do s <- printy t1; return $ addParens s
+              _ -> printy t1
+      s2 <- printy t2
+      return $ s1 ++ " -> " ++ s2
+    TPair t1 t2 -> do
+      s1 <- printy t1
+      s2 <- printy t2
+      return $ "(" ++ s1 ++ ", " ++ s2 ++ ")"
+    TMem t1 t2 -> do
+      s1 <- printy t1
+      s2 <- printy t2
+      return $ "Mem " ++ s1 ++ " " ++ s2
+    TSum t1 t2 -> do
+      s1 <- printy t1
+      s2 <- printy t2
+      return $ s1 ++ " + " ++ s2
+    THand t1 t2 -> do
+      s1 <- printy t1
+      s2 <- printy t2
+      return $ s1 ++ " => " ++ s2
+    TList t -> do
+      s <- printy t
+      return $ "List " ++ s
+    TCutList t -> do
+      s <- printy t
+      return $ "CutList " ++ s
+    TUnit -> return "Unit"
+    TString -> return "String"
+    TBool -> return "Bool"
+    TInt -> return "Int"
+    TEmpty -> return "Empty"
+
+instance MyTypePrinter EType where
+  printy et = case et of
+    EVar x -> do
+      (m, alphabet) <- get
+      case M.lookup x m of
+        Just y -> return y
+        Nothing -> do let (c:res) = alphabet
+                      put (M.insert x c m, res)
+                      return c
+    EEmpty -> return "<>"
+    ECons l t -> do
+      let (ls, t') = getAllLabels (ECons l t)
+      case t' of
+        (EVar x) -> do s <- printy t'; return $ "<" ++ printLabels ls ++ " | " ++ s ++ ">"
+        EEmpty -> return $ "<" ++ printLabels ls ++ ">"
+        _ -> error "impossible"
+      -- s <- printy t
+      -- return $ "<" ++ l ++ ";" ++ s ++ ">"
+
+getAllLabels :: EType -> ([Name], EType)
+getAllLabels (EVar x) = ([], EVar x)
+getAllLabels EEmpty = ([], EEmpty)
+getAllLabels (ECons l t) = let (res, et) = getAllLabels t
+                           in (l : res, et)
+
+printLabels :: [Name] -> String
+printLabels [] = ""
+printLabels [x] = x
+printLabels (x:y:xs) = x ++ "; " ++ printLabels (y:xs)
+
+instance MyTypePrinter CType where
+  printy (CT vt et) = do
+    s <- case vt of
+          TArr _ _ -> do s <- printy vt; return $ addParens s
+          TSum _ _ -> do s <- printy vt; return $ addParens s
+          _ -> printy vt
+    es <- printy et
+    return $ s ++ " ! " ++ es
+
+instance MyTypePrinter SType where
+  printy (Mono vt) = printy vt
+  printy (Forall x k st) = do
+    (m, alphabet) <- get
+    sx <- case M.lookup x m of
+            Just y -> return y
+            Nothing -> do let (c:res) = alphabet
+                          put (M.insert x c m, res)
+                          return c
+    s <- printy st
+    return $ "∀" ++ sx ++ ":" ++ printt k ++ ". " ++ s
+
+instance MyPrinter Kind where
+  printt ValueType = "*"
+  printt EffectType = "Eff"
+  printt CompType = "I don't want to print a computation type :)"
+
+instance (MyPrinter a, MyPrinter b) => MyPrinter (Either a b) where
+  printt (Left x) = printt x
+  printt (Right x) = printt x
+
+instance (MyTypePrinter a, MyTypePrinter b) => MyTypePrinter (Either a b) where
+  printy (Left x) = printy x
+  printy (Right x) = printy x

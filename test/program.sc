@@ -1,4 +1,5 @@
 DEF hInc = handler [\ x : * . Arr Int ((x, Int) ! mu)]
+-- DEF hInc = handler [\ x : * . \ mu : Eff . Arr Int ((x, Int) ! mu)]
   { return x   |-> return (\ s . return (x, s))
   , op inc _ k |-> return (\ s . do s1 <- (s + 1); k s s1)
   , fwd f p k  |-> return (\ s . f (
@@ -7,21 +8,22 @@ DEF hInc = handler [\ x : * . Arr Int ((x, Int) ! mu)]
     ))
   }
 
-
 DEF hOnce = handler [\ x : * . List x]
+-- DEF hOnce = handler [\ x : * . \ _ : Eff . List x]
   { return x      |-> return [x]
-  , op fail _ _   |-> return []
+  -- , op fail _ _   |-> return []
   , op choose _ k |-> do xs <- k true; do ys <- k false ; xs ++ ys
   , sc once _ p k |-> do ts <- p unit; do t <- head ts; k t
   , fwd f p k |-> f (p, \ z . concatMap z k)
   }
 
-
 DEF exceptMap = \ z . return (
   \ k . case z of left e  -> return (left e)
                   right x -> k x
 )
+
 DEF hExcept = handler [\ x : * . Sum String x]
+-- DEF hExcept = handler [\ x : * . \ _ : Eff . Sum String x]
   { return x       |-> return (right x)
   , op raise e k   |-> return (left e)
   , sc catch e p k |->
@@ -75,9 +77,19 @@ DEF hDepth = handler [\ x : * . Arr Int (List (x, Int) ! mu)]
      ))
   }
 
+
 ----------------------------------------------------------------
 
--- 1. cInc = op choose unit (b . if b then op inc unit else op inc unit)
+RUN hOnce # op choose unit (b . if b then return 1 else return 2)
+
+RUN hOnce #
+  sc once unit (_ . op choose unit)
+               (b . if b then return "heads" else return "tails")
+
+RUN hExcept #
+  sc catch "SAR" (b . if b then op raise "SAR" (y . absurd y)
+                      else return "SAR is caught!")
+
 
 RUN hOnce # (do f <- hInc # (
   op choose unit (b . if b then op inc unit else op inc unit)
@@ -87,66 +99,11 @@ RUN do f <- hInc # (hOnce # (
   op choose unit (b . if b then op inc unit else op inc unit)
 )); f 0
 
-----------------------------------------------------------------
-
--- 2. cFwd = sc once unit
---      (_ . op choose unit (b . if b then op inc unit else op inc unit))
---      (x . op inc unit (y . x + y))
-
 RUN hOnce # (do f <- hInc # (
   sc once unit
     (_ . op choose unit (b . if b then op inc unit else op inc unit ))
     (x . op inc unit (y . x + y))
 ); f 0)
-
-----------------------------------------------------------------
-
--- 3. cOnce = sc once unit (_ . op choose unit)
---                         (b . if b then return "heads" else return "tails")
-
-RUN hOnce #
-  sc once unit (_ . op choose unit)
-               (b . if b then return "heads" else return "tails")
-
-----------------------------------------------------------------
-
--- 4. cCatch = sc catch "Overflow"
---   (b . if b then do x <- op inc unit;
---                  do b <- x > 10;
---                  if b then op raise "Overflow" (y . absurd y)
---                       else return x
---        else return 10)
-
-RUN hExcept #
-  sc catch "SAR" (b . if b then op raise "SAR" (y . absurd y)
-                      else return "SAR is caught!")
-
-
-RUN hExcept # (do f <- hInc # (
-  sc catch "Overflow"
-    (b . if b then do x <- op inc unit;
-                   do b <- x > 10;
-                   if b then op raise "Overflow" (y . absurd y)
-                        else return x
-         else return 10)
-); f 42)
-
-RUN do f <- hInc # (hExcept # (
-  sc catch "Overflow"
-    (b . if b then do x <- op inc unit;
-                   do b <- x > 10;
-                   if b then op raise "Overflow" (y . absurd y)
-                        else return x
-         else return 10)
-)); f 42
-
-----------------------------------------------------------------
-
--- 5. cState = do _ <- op put (x, 10);
---             do x1 <- sc local (x, 42) (_ . op get x);
---             do x2 <- op get x;
---             return (x1, x2)
-
 
 RUN do m <- newmem unit;
     do f <- hState # (
@@ -158,10 +115,6 @@ RUN do m <- newmem unit;
     do x <- f m;
     fst x
 
-
-----------------------------------------------------------------
--- 6. cCut
-
 RUN hCut # (
   do b <- sc call unit (_ . 
         do y <- op choose unit;
@@ -169,10 +122,6 @@ RUN hCut # (
              else return false );
      if b then return "heads" else return "tails"
 )
-
-
-----------------------------------------------------------------
--- 7. cDepth
 
 RUN do f <- hDepth # (
     sc depth 1
@@ -184,4 +133,13 @@ RUN do f <- hDepth # (
   );
   f 2
 
+
+--------------------------------------------------------------
+
+-- DEF h1st = handler 
+--   { return x      |-> return x
+--   , op choose _ k |-> do xs <- k true; do ys <- k false ; return xs
+--   -- , op choose _ k |-> do xs <- k true; do ys <- k false ; xs ++ ys
+--   , fwd f p k |-> f (p, \ z . concatMap z k)
+--   }
 
