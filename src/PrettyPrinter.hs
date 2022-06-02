@@ -1,6 +1,9 @@
 module PrettyPrinter where
 
 import Syntax
+import Control.Monad.State
+import qualified Data.Map as M
+import Control.Monad.RWS (All(getAll))
 
 addParens :: String -> String
 addParens s = "(" ++ s ++ ")"
@@ -19,7 +22,7 @@ instance MyPrinter Value where
     Vbool b -> if b then "true" else "false"
     Vint n -> show n
     Vchar c -> show c
-    Vstr s -> s
+    Vstr s -> "\"" ++ s ++ "\""
     Vlist vs -> "[" ++ drop 2 (foldl (\s v -> s ++ ", " ++ printt v) "" vs) ++ "]"
     Vsum e -> case e of Left x -> "left " ++ printt x
                         Right x -> "right " ++ printt x
@@ -62,34 +65,102 @@ instance MyPrinter Comp where
 instance MyPrinter Handler where
   printt h = "I don't want to print a handler :)"
 
-instance MyPrinter VType where
-  printt vt = case vt of
-    TVar x -> x
-    TArr t1 t2 -> addParens (printt t1) ++ " -> " ++ addParens (printt t2)
-    TPair t1 t2 -> "(" ++ printt t1 ++ ", " ++ printt t2 ++ ")"
-    TMem t1 t2 -> "Mem " ++ printt t1 ++ " " ++ printt t2
-    TSum t1 t2 -> printt t1 ++ " + " ++ printt t2
-    THand t1 t2 -> printt t1 ++ " => " ++ printt t2
-    TList t -> "List " ++ printt t
-    TCutList t -> "CutList " ++ printt t
-    TUnit -> "Unit"
-    TString -> "String"
-    TBool -> "Bool"
-    TInt -> "Int"
-    TEmpty -> "Empty"
+class MyTypePrinter a where
+  printy :: a -> State (M.Map String String, [String]) String
 
-instance MyPrinter EType where
-  printt et = case et of
-    EVar x -> x
-    EEmpty -> "<>"
-    ECons l t -> "<" ++ l ++ ";" ++ printt t ++ ">"
+instance MyTypePrinter VType where
+  printy vt = case vt of
+    TVar x -> do
+      (m, alphabet) <- get
+      case M.lookup x m of
+        Just y -> return y
+        Nothing -> do let (c:res) = alphabet
+                      put (M.insert x c m, res)
+                      return c
+    TArr t1 t2 -> do
+      s1 <- case t1 of
+              TArr _ _ -> do s <- printy t1; return $ addParens s
+              _ -> printy t1
+      s2 <- printy t2
+      return $ s1 ++ " -> " ++ s2
+    TPair t1 t2 -> do
+      s1 <- printy t1
+      s2 <- printy t2
+      return $ "(" ++ s1 ++ ", " ++ s2 ++ ")"
+    TMem t1 t2 -> do
+      s1 <- printy t1
+      s2 <- printy t2
+      return $ "Mem " ++ s1 ++ " " ++ s2
+    TSum t1 t2 -> do
+      s1 <- printy t1
+      s2 <- printy t2
+      return $ s1 ++ " + " ++ s2
+    THand t1 t2 -> do
+      s1 <- printy t1
+      s2 <- printy t2
+      return $ s1 ++ " => " ++ s2
+    TList t -> do
+      s <- printy t
+      return $ "List " ++ s
+    TCutList t -> do
+      s <- printy t
+      return $ "CutList " ++ s
+    TUnit -> return "Unit"
+    TString -> return "String"
+    TBool -> return "Bool"
+    TInt -> return "Int"
+    TEmpty -> return "Empty"
 
-instance MyPrinter CType where
-  printt (CT vt et) = printt vt ++ " ! " ++ printt et
+instance MyTypePrinter EType where
+  printy et = case et of
+    EVar x -> do
+      (m, alphabet) <- get
+      case M.lookup x m of
+        Just y -> return y
+        Nothing -> do let (c:res) = alphabet
+                      put (M.insert x c m, res)
+                      return c
+    EEmpty -> return "<>"
+    ECons l t -> do
+      let (ls, t') = getAllLabels (ECons l t)
+      case t' of
+        (EVar x) -> do s <- printy t'; return $ "<" ++ printLabels ls ++ " | " ++ s ++ ">"
+        EEmpty -> return $ "<" ++ printLabels ls ++ ">"
+        _ -> error "impossible"
+      -- s <- printy t
+      -- return $ "<" ++ l ++ ";" ++ s ++ ">"
 
-instance MyPrinter SType where
-  printt (Mono vt) = printt vt
-  printt (Forall x k st) = "∀ " ++ x ++ " : " ++ printt k ++ " . " ++ printt st
+getAllLabels :: EType -> ([Name], EType)
+getAllLabels (EVar x) = ([], EVar x)
+getAllLabels EEmpty = ([], EEmpty)
+getAllLabels (ECons l t) = let (res, et) = getAllLabels t
+                           in (l : res, et)
+
+printLabels :: [Name] -> String
+printLabels [] = ""
+printLabels [x] = x
+printLabels (x:y:xs) = x ++ "; " ++ printLabels (y:xs)
+
+instance MyTypePrinter CType where
+  printy (CT vt et) = do
+    s <- case vt of
+          TArr _ _ -> do s <- printy vt; return $ addParens s
+          TSum _ _ -> do s <- printy vt; return $ addParens s
+          _ -> printy vt
+    es <- printy et
+    return $ s ++ " ! " ++ es
+
+instance MyTypePrinter SType where
+  printy (Mono vt) = printy vt
+  printy (Forall x k st) = do
+    (m, alphabet) <- get
+    sx <- case M.lookup x m of
+            Just y -> return y
+            Nothing -> do let (c:res) = alphabet
+                          put (M.insert x c m, res)
+                          return c
+    s <- printy st
+    return $ "∀" ++ sx ++ ":" ++ printt k ++ ". " ++ s
 
 instance MyPrinter Kind where
   printt ValueType = "*"
@@ -99,3 +170,7 @@ instance MyPrinter Kind where
 instance (MyPrinter a, MyPrinter b) => MyPrinter (Either a b) where
   printt (Left x) = printt x
   printt (Right x) = printt x
+
+instance (MyTypePrinter a, MyTypePrinter b) => MyTypePrinter (Either a b) where
+  printy (Left x) = printy x
+  printy (Right x) = printy x

@@ -1,5 +1,6 @@
 {-# OPTIONS_GHC -Wno-unrecognised-pragmas #-}
 {-# HLINT ignore "Use mapM_" #-}
+{-# HLINT ignore "Use lambda-case" #-}
 module Main where
 
 import Syntax
@@ -13,6 +14,7 @@ import Text.Parsec
 import Control.Monad.Except
 import Control.Monad.State
 import System.Environment
+import qualified Data.Map as M
 
 runParseValue :: String -> Except Err (Either ParseError Value)
 runParseValue = runParserT parseValue emptyctx "CandyQwQ"
@@ -55,6 +57,11 @@ inferCmds (Run c : cs) = do
   ts <- inferCmds cs
   return $ t : ts
 
+isDef (Def _ _) = True
+isDef _ = False
+
+alphabets = map (:[]) ['a'..'z']
+
 runFile :: IO ()
 runFile = do
   args <- getArgs
@@ -74,13 +81,17 @@ runFile = do
             case ts of
               Left err -> putStrLn $ "[TYPE INFERENCE FAILED 😵]: " ++ show err
               Right ts -> do putStrLn "[TYPE INFERENCE SUCCESS 🥳]: "
-                             mapM (\t -> putStrLn $ "  " ++ printt t) ts;
+                             let names = (\ x -> case x of Def s _ -> s
+                                                           Run _ -> "") <$> cmds
+                             mapM (\(n, t) -> putStrLn $ "  " ++
+                                          (if n /= "" then n ++ " : " else "") ++
+                                          evalState (printy t) (M.empty, alphabets)) $ zip names ts;
                              return ()
             let cs = cmds2comps cmds
             --  putStrLn (show cs)
             putStrLn "[EVALUATION RESULTS 🥳]:"
             --  mapM (\ c -> putStrLn $ "  " ++ show (eval c)) cs
-            mapM (\ c -> putStrLn $ "  " ++ printt (eval c)) cs
+            mapM (\ c -> putStrLn $ " " ++ dropWhile (/= ' ') (printt (eval c))) cs
             return ()
     _ -> putStrLn "file names error, enter REPL" >> repl
 
