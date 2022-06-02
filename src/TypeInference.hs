@@ -442,6 +442,7 @@ inferC (Sc l v (y :. c1) (z :. c2)) = do
 inferC (Add v1 v2) = inferFunc2 "add" v1 v2
 inferC (Minus v1 v2) = inferFunc2 "minus" v1 v2
 inferC (Eq v1 v2) = inferFunc2 "eq" v1 v2
+inferC (Lt v1 v2) = inferFunc2 "lt" v1 v2
 inferC (Fst v) = inferFunc1 "fst" v
 inferC (Snd v) = inferFunc1 "snd" v
 inferC (Head v) = inferFunc1 "head" v

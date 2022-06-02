@@ -1,4 +1,4 @@
-DEF hInc = handler
+DEF hInc = handler [\ x : * . Arr Int ((x, Int) ! mu)]
   { return x   |-> return (\ s . return (x, s))
   , op inc _ k |-> return (\ s . do s1 <- (s + 1); k s s1)
   , fwd f p k  |-> return (\ s . f (
@@ -8,7 +8,7 @@ DEF hInc = handler
   }
 
 
-DEF hOnce = handler
+DEF hOnce = handler [\ x : * . List x]
   { return x      |-> return [x]
   , op fail _ _   |-> return []
   , op choose _ k |-> do xs <- k true; do ys <- k false ; xs ++ ys
@@ -21,7 +21,7 @@ DEF exceptMap = \ z . return (
   \ k . case z of left e  -> return (left e)
                   right x -> k x
 )
-DEF hExcept = handler
+DEF hExcept = handler [\ x : * . Sum String x]
   { return x       |-> return (right x)
   , op raise e k   |-> return (left e)
   , sc catch e p k |->
@@ -32,7 +32,7 @@ DEF hExcept = handler
   , fwd f p k |-> f (p, \ z . exceptMap z k)
   }
 
-DEF hState = handler
+DEF hState = handler [\ x : * . Arr (Mem String Int) ((a, Mem String Int) ! mu)]
   { return x        |-> return (\ m . return (x, m))
   , op get x k      |-> return (\ m . do v <- retrieve x m; k v m)
   , op put pa k     |-> return (\ m . do m' <- update pa m; k unit m')
@@ -49,7 +49,7 @@ DEF hState = handler
     ))
   }
 
-DEF hCut = handler
+DEF hCut = handler [\ x : * . CutList x]
   {  return x      |->  return (opened [x])
   ,  op fail _ _   |->  return (opened [])
   ,  op choose _ k |->  do xs <- k true; do ys <- k false; append xs ys
@@ -58,7 +58,7 @@ DEF hCut = handler
   , fwd f p k |-> f (p, \ z . concatMapCutList z k)
   }
 
-DEF hDepth = handler
+DEF hDepth = handler [\ x : * . Arr Int (List (x, Int) ! mu)]
   {  return x        |->  return (\ d . return [(x, d)])
   ,  op fail _ _     |->  return (\ _ . return [])
   ,  op choose _ k   |->  return (\ d . do b <- d == 0;
@@ -75,20 +75,20 @@ DEF hDepth = handler
      ))
   }
 
-DEF hToken = handler
-  { return x      |->  return (\ s .  return (x, s))
-  , op symbol x k |->  return (\ s .
-      do b <- s == [];
-         if b then op fail unit (y . absurd y)
-              else do x' <- head s;
-                   do xs <- tail s;
-                   do b <- x == x';
-                      if b then k x xs else op fail unit (y . absurd y))
-  , fwd f p k |-> return (\ s . f (
-      \ y . p y s ,
-      \ zs . do z <- fst zs; do s' <- snd zs; k z s'
-    ))
-  }
+-- DEF hToken = handler
+--   { return x      |->  return (\ s .  return (x, s))
+--   , op symbol x k |->  return (\ s .
+--       do b <- s == [];
+--          if b then op fail unit (y . absurd y)
+--               else do x' <- head s;
+--                    do xs <- tail s;
+--                    do b <- x == x';
+--                       if b then k x xs else op fail unit (y . absurd y))
+--   , fwd f p k |-> return (\ s . f (
+--       \ y . p y s ,
+--       \ zs . do z <- fst zs; do s' <- snd zs; k z s'
+--     ))
+--   }
   
 -- 无法递归定义！
 -- DEF digit = \ _ .  op token '0' 
@@ -142,6 +142,11 @@ RUN hOnce #
 --                  if b then op raise "Overflow" (y . absurd y)
 --                       else return x
 --        else return 10)
+
+RUN hExcept #
+  sc catch "SAR" (b . if b then op raise "SAR" (y . absurd y)
+                      else return "SAR is caught!")
+
 
 RUN hExcept # (do f <- hInc # (
   sc catch "Overflow"

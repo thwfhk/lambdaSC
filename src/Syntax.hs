@@ -317,6 +317,7 @@ builtInFuncType s = case s of
   "add" -> fmu s . Mono $ TPair TInt TInt <->> TInt <!> mu s
   "minus" -> fmu s . Mono $ TPair TInt TInt <->> TInt <!> mu s
   "eq" -> fa s . fmu s . Mono $ TPair (a s) (a s)  <->> TBool <!> mu s
+  "lt" -> fa s . fmu s . Mono $ TPair (a s) (a s)  <->> TBool <!> mu s
   "fst" -> fa s . fb s . fmu s . Mono $ TPair (a s) (b s) <->> a s <!> mu s
   "snd" -> fa s . fb s . fmu s . Mono $ TPair (a s) (b s) <->> b s <!> mu s
   "head" -> fa s . fmu s . Mono $ TList (a s) <->> a s <!> mu s

@@ -88,7 +88,7 @@ RUN hOnce #
 
 RUN hExcept #
   sc catch "SAR" (b . if b then op raise "SAR" (y . absurd y)
-                      else return "SAR is catched!")
+                      else return "SAR is caught!")
 
 
 RUN hOnce # (do f <- hInc # (
