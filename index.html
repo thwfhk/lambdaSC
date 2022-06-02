@@ -54,7 +54,7 @@
     <h1>LambdaSC Interpreter</h1>
       <p>This is a simple interpreter of 𝝺<sub>sc</sub>, a calculus for scoped effects & handlers.</p>
       <p>For more information about 𝝺<sub>sc</sub>, please refer to the paper (url to be added).</p>
-    <p style="color:red">NOTE: The interpreter does not support type checking and recursive functions currently.</p>
+    <!-- <p style="color:red">NOTE: The interpreter does not support recursive functions currently.</p> -->
     <div class="sample-toolbar">
       <button id = "run">RUN</button>
       Examples:
@@ -67,11 +67,11 @@
     </div>
   
     <textarea class="editor" id="editor" rows="25">
-DEF hND = handler
+DEF hND = handler [\ x : * . List x]
   { return x      |-> return [x]
   , op fail _ _   |-> return []
   , op choose _ k |-> do xs <- k true; do ys <- k false ; xs ++ ys
-  , fwd f p k     |-> f (p, \ z . concatMap z k)
+  , fwd f p k |-> f (p, \ z . concatMap z k)
   }
 
 RUN hND # op choose unit (b . if b then return "heads" else return "tails")
@@ -80,7 +80,7 @@ RUN hND # op choose unit (b . if b then return "heads" else return "tails")
     <pre id = "output">
     </pre>
 
-    <div id="footer">Haskell to Web Translation by <a href="https://github.com/tweag/asterius">Asterius</aa></div>
+    <!-- <div id="footer">Haskell to Web Translation by <a href="https://github.com/tweag/asterius">Asterius</aa></div> -->
 
 
     <script src="LambdaSC.js"> </script>

@@ -3,7 +3,7 @@ DEF exceptMap = \ z . return (
                   right x -> k x
 )
 
-DEF hExcept = handler
+DEF hExcept = handler [\ x : * . Sum String x]
   { return x       |-> return (right x)
   , op raise e k   |-> return (left e)
   , sc catch e p k |->
@@ -14,7 +14,7 @@ DEF hExcept = handler
   , fwd f p k |-> f (p, \ z . exceptMap z k)
   }
 
-DEF hInc = handler
+DEF hInc = handler [\ x : * . Arr Int ((x, Int) ! mu)]
   { return x   |-> return (\ s . return (x, s))
   , op inc _ k |-> return (\ s . do s1 <- (s + 1); k s s1)
   , fwd f p k  |-> return (\ s . f (
@@ -24,6 +24,10 @@ DEF hInc = handler
   }
 
 ----------------------------------------------------------------
+
+RUN hExcept #
+  sc catch "SAR" (b . if b then op raise "SAR" (y . absurd y)
+                      else return "SAR is caught!")
 
 RUN hExcept # (do f <- hInc # (
   sc catch "Overflow"

@@ -1,4 +1,4 @@
-DEF hND = handler
+DEF hND = handler [\ x : * . List x]
   { return x      |-> return [x]
   , op fail _ _   |-> return []
   , op choose _ k |-> do xs <- k true; do ys <- k false ; xs ++ ys

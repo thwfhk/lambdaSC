@@ -1,7 +1,7 @@
 module CodeString where
 
 nd = "\
-  \DEF hND = handler \n\
+  \DEF hND = handler [\\ x : * . List x] \n\
   \  { return x      |-> return [x] \n\
   \  , op fail _ _   |-> return [] \n\
   \  , op choose _ k |-> do xs <- k true; do ys <- k false ; xs ++ ys \n\
@@ -12,7 +12,7 @@ nd = "\
   \"
 
 local = "\
-  \DEF hState = handler \n\
+  \DEF hState = handler [\\ x : * . Arr (Mem String Int) ((a, Mem String Int) ! mu)] \n\
   \  { return x        |-> return (\\ m . return (x, m)) \n\
   \  , op get x k      |-> return (\\ m . do v <- retrieve x m; k v m) \n\
   \  , op put pa k     |-> return (\\ m . do m' <- update pa m; k unit m') \n\
@@ -44,7 +44,7 @@ local = "\
   \"
 
 cut = "\
-  \DEF hCut = handler \n\
+  \DEF hCut = handler [\\ x : * . CutList x] \n\
   \  {  return x      |->  return (opened [x]) \n\
   \  ,  op fail _ _   |->  return (opened []) \n\
   \  ,  op choose _ k |->  do xs <- k true; do ys <- k false; append xs ys \n\
@@ -66,7 +66,7 @@ cut = "\
   \"
 
 once = "\
-  \DEF hInc = handler \n\
+  \DEF hInc = handler [\\ x : * . Arr Int ((x, Int) ! mu)] \n\
   \  { return x   |-> return (\\ s . return (x, s)) \n\
   \  , op inc _ k |-> return (\\ s . do s1 <- (s + 1); k s s1) \n\
   \  , fwd f p k  |-> return (\\ s . f ( \n\
@@ -75,7 +75,7 @@ once = "\
   \    )) \n\
   \  } \n\
   \ \n\
-  \DEF hOnce = handler \n\
+  \DEF hOnce = handler [\\ x : * . List x] \n\
   \  { return x      |-> return [x] \n\
   \  , op fail _ _   |-> return [] \n\
   \  , op choose _ k |-> do xs <- k true; do ys <- k false ; xs ++ ys \n\
@@ -106,7 +106,7 @@ once = "\
   \"
 
 depth = "\
-  \DEF hDepth = handler \n\
+  \DEF hDepth = handler [\\ x : * . Arr Int (List (x, Int) ! mu)] \n\
   \  {  return x        |->  return (\\ d . return [(x, d)]) \n\
   \  ,  op fail _ _     |->  return (\\ _ . return []) \n\
   \  ,  op choose _ k   |->  return (\\ d . do b <- d == 0; \n\
@@ -143,7 +143,7 @@ catch = "\
   \                  right x -> k x \n\
   \) \n\
   \ \n\
-  \DEF hExcept = handler \n\
+  \DEF hExcept = handler [\\ x : * . Sum String x] \n\
   \  { return x       |-> return (right x) \n\
   \  , op raise e k   |-> return (left e) \n\
   \  , sc catch e p k |-> \n\
@@ -154,7 +154,7 @@ catch = "\
   \  , fwd f p k |-> f (p, \\ z . exceptMap z k) \n\
   \  } \n\
   \ \n\
-  \DEF hInc = handler \n\
+  \DEF hInc = handler [\\ x : * . Arr Int ((x, Int) ! mu)] \n\
   \  { return x   |-> return (\\ s . return (x, s)) \n\
   \  , op inc _ k |-> return (\\ s . do s1 <- (s + 1); k s s1) \n\
   \  , fwd f p k  |-> return (\\ s . f ( \n\

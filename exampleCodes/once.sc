@@ -1,4 +1,4 @@
-DEF hInc = handler
+DEF hInc = handler [\ x : * . Arr Int ((x, Int) ! mu)]
   { return x   |-> return (\ s . return (x, s))
   , op inc _ k |-> return (\ s . do s1 <- (s + 1); k s s1)
   , fwd f p k  |-> return (\ s . f (
@@ -7,7 +7,7 @@ DEF hInc = handler
     ))
   }
 
-DEF hOnce = handler
+DEF hOnce = handler [\ x : * . List x]
   { return x      |-> return [x]
   , op fail _ _   |-> return []
   , op choose _ k |-> do xs <- k true; do ys <- k false ; xs ++ ys

@@ -4,7 +4,7 @@ cabal-version: 1.12
 --
 -- see: https://github.com/sol/hpack
 --
--- hash: 60ffe6201cd8a48cd768ef289ac67d66615a0b5db2f639ab78d34ec434f4a462
+-- hash: edb897d749affdb1bc4e6a025b6d63b5dc2776a980aa2e6aad0ce95fa082637f
 
 name:           lambdaSC
 version:        0.1.0.0
@@ -15,7 +15,6 @@ author:         Author name here
 maintainer:     example@example.com
 copyright:      2022 Author name here
 license:        BSD3
-license-file:   LICENSE
 build-type:     Simple
 extra-source-files:
     README.md
@@ -26,16 +25,6 @@ source-repository head
   location: https://github.com/githubuser/lambdaSC
 
 library
-  exposed-modules:
-      Context
-      Evaluation
-      Examples
-      Lexer
-      Parser
-      PrettyPrinter
-      Substitution
-      Syntax
-      TypeInference
   other-modules:
       Paths_lambdaSC
   hs-source-dirs:

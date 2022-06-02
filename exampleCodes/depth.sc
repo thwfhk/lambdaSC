@@ -1,4 +1,4 @@
-DEF hDepth = handler
+DEF hDepth = handler [\ x : * . Arr Int (List (x, Int) ! mu)]
   {  return x        |->  return (\ d . return [(x, d)])
   ,  op fail _ _     |->  return (\ _ . return [])
   ,  op choose _ k   |->  return (\ d . do b <- d == 0;

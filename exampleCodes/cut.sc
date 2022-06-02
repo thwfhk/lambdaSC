@@ -1,4 +1,4 @@
-DEF hCut = handler
+DEF hCut = handler [\ x : * . CutList x]
   {  return x      |->  return (opened [x])
   ,  op fail _ _   |->  return (opened [])
   ,  op choose _ k |->  do xs <- k true; do ys <- k false; append xs ys

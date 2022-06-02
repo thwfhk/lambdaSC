@@ -1,4 +1,4 @@
-DEF hState = handler
+DEF hState = handler [\ x : * . Arr (Mem String Int) ((a, Mem String Int) ! mu)]
   { return x        |-> return (\ m . return (x, m))
   , op get x k      |-> return (\ m . do v <- retrieve x m; k v m)
   , op put pa k     |-> return (\ m . do m' <- update pa m; k unit m')
