@@ -67,9 +67,11 @@ instance MyPrinter VType where
     TVar x -> x
     TArr t1 t2 -> addParens (printt t1) ++ " -> " ++ addParens (printt t2)
     TPair t1 t2 -> "(" ++ printt t1 ++ ", " ++ printt t2 ++ ")"
+    TMem t1 t2 -> "Mem " ++ printt t1 ++ " " ++ printt t2
     TSum t1 t2 -> printt t1 ++ " + " ++ printt t2
     THand t1 t2 -> printt t1 ++ " => " ++ printt t2
     TList t -> "List " ++ printt t
+    TCutList t -> "CutList " ++ printt t
     TUnit -> "Unit"
     TString -> "String"
     TBool -> "Bool"

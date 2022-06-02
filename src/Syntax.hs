@@ -113,6 +113,11 @@ h # c = Handle h c
 ----------------------------------------------------------------
 -- type syntax
 
+-- If you add a new built-in type, you may need to modify:
+-- 1. class Applicable
+-- 2. class Unifiable
+-- 3. class SubstValueType & SubstEffectType
+
 -- value type
 data VType
   = TVar Name
@@ -121,6 +126,8 @@ data VType
   | TSum VType VType
   | THand CType CType
   | TList VType
+  | TCutList VType
+  | TMem VType VType
   | TUnit
   | TString
   | TBool
@@ -203,28 +210,34 @@ instance SubstValueType VType where
     TVar y | x /= y -> TVar y
     TArr t1 (CT t2 e) -> TArr (substVT (x, t) t1) (CT (substVT (x, t) t2) e)
     TPair t1 t2 -> TPair (substVT (x, t) t1) (substVT (x, t) t2)
+    TMem t1 t2 -> TMem (substVT (x, t) t1) (substVT (x, t) t2)
     TSum t1 t2 -> TSum (substVT (x, t) t1) (substVT (x, t) t2)
     TList ts -> TList (substVT (x, t) ts)
+    TCutList ts -> TCutList (substVT (x, t) ts)
     TString -> TString
     TUnit -> TUnit
     TBool -> TBool
     TInt -> TInt
     TEmpty -> TEmpty
-    oth -> error $ "substVT undefined for " ++ show oth
+    THand t1 t2 -> error "Are you serious?"
+    -- oth -> error $ "substVT undefined for " ++ show oth
 
 instance SubstEffectType VType where
   substET (x, t) a = case a of
     TVar y -> TVar y
     TArr t1 (CT t2 e) -> TArr (substET (x, t) t1) (CT (substET (x, t) t2) (substET (x, t) e))
     TPair t1 t2 -> TPair (substET (x, t) t1) (substET (x, t) t2)
+    TMem t1 t2 -> TMem (substET (x, t) t1) (substET (x, t) t2)
     TSum t1 t2 -> TSum (substET (x, t) t1) (substET (x, t) t2)
     TList ts -> TList (substET (x, t) ts)
+    TCutList ts -> TCutList (substET (x, t) ts)
     TString -> TString
     TUnit -> TUnit
     TBool -> TBool
     TInt -> TInt
     TEmpty -> TEmpty
-    oth -> error $ "substET undefined for " ++ show oth
+    THand t1 t2 -> error "Are you serious?"
+    -- oth -> error $ "substET undefined for " ++ show oth
 
 instance SubstEffectType EType where
   substET (x, t) a = case a of
@@ -301,12 +314,24 @@ builtInFunc2 =
 -- 这里用相同的"alpha", "beta"应该会造成问题，一个地方同时用多个函数时，unification会以为"alpha"都是同一个
 builtInFuncType :: Name -> SType
 builtInFuncType s = case s of
+  "add" -> fmu s . Mono $ TPair TInt TInt <->> TInt <!> mu s
+  "minus" -> fmu s . Mono $ TPair TInt TInt <->> TInt <!> mu s
+  "eq" -> fa s . fmu s . Mono $ TPair (a s) (a s)  <->> TBool <!> mu s
   "fst" -> fa s . fb s . fmu s . Mono $ TPair (a s) (b s) <->> a s <!> mu s
   "snd" -> fa s . fb s . fmu s . Mono $ TPair (a s) (b s) <->> b s <!> mu s
   "head" -> fa s . fmu s . Mono $ TList (a s) <->> a s <!> mu s
   "append" -> fa s . fmu s . Mono $ TPair (TList (a s)) (TList (a s)) <->> TList (a s) <!> mu s
   "concatMap" -> fa s . fb s . fmu s . Mono $
     TPair (TList (b s)) (b s <->> TList (a s) <!> mu s) <->> TList (a s) <!> mu s
+  "newmem" -> fa s . fb s . fmu s . Mono $ TUnit <->> TMem (a s) (b s) <!> mu s
+  "retrieve" -> fa s . fb s . fmu s . Mono $ TPair (a s) (TMem (a s) (b s)) <->> b s <!> mu s
+  "update" -> fa s . fb s . fmu s . Mono $
+      TPair (TPair (a s) (b s)) (TMem (a s) (b s)) <->> TMem (a s) (b s) <!> mu s
+  "close" -> fa s . fmu s . Mono $ TCutList (a s) <->> TCutList (a s) <!> mu s
+  "open" -> fa s . fmu s . Mono $ TCutList (a s) <->> TCutList (a s) <!> mu s
+  "appendCut" -> fa s . fmu s . Mono $ TPair (TCutList (a s)) (TCutList (a s)) <->> TCutList (a s) <!> mu s
+  "concatMapCutList" -> fa s . fb s . fmu s . Mono $
+    TPair (TCutList (b s)) (b s <->> TCutList (a s) <!> mu s) <->> TCutList (a s) <!> mu s
   oth -> error $ "builtInFuncTypes: no " ++ oth ++ " function"
   where
     fa s = Forall ("alpha_" ++ s) ValueType

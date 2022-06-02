@@ -425,6 +425,8 @@ parseVType = (whiteSpace >>) $ choice
   , parseTString
   , try parseTPair
   , parseTList
+  , parseTCutList
+  , parseMem
   , try parseTSum
   , try parseArr -- should be the last one
   , try $ parens parseVType
@@ -475,11 +477,24 @@ parseArr = do
   ct <- parseCType
   return $ TArr vt ct
 
+parseMem :: Parser VType
+parseMem = do
+  reserved "Mem"
+  t1 <- parseVType
+  t2 <- parseVType
+  return $ TMem t1 t2
+
 parseTList :: Parser VType
 parseTList = do
   reserved "List"
   t <- parseVType
   return $ TList t
+
+parseTCutList :: Parser VType
+parseTCutList = do
+  reserved "CutList"
+  t <- parseVType
+  return $ TCutList t
 
 -- binary :: String -> (a -> a -> a) -> Ex.Assoc -> Ex.Operator String u (Except Err) a
 -- binary s f = Ex.Infix (reservedOp s >> return f)

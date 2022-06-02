@@ -76,6 +76,10 @@ instance Unifiable VType where
     theta1 <- unify t1 t1'
     theta2 <- unify (apply theta1 t2) (apply theta1 t2')
     return $ theta2 <^> theta1
+  unify (TMem t1 t2) (TMem t1' t2') = do
+    theta1 <- unify t1 t1'
+    theta2 <- unify (apply theta1 t2) (apply theta1 t2')
+    return $ theta2 <^> theta1
   unify (TSum t1 t2) (TSum t1' t2') = do
     theta1 <- unify t1 t1'
     theta2 <- unify (apply theta1 t2) (apply theta1 t2')
@@ -84,10 +88,10 @@ instance Unifiable VType where
     theta1 <- unify t1 t1'
     theta2 <- unify (apply theta1 t2) (apply theta1 t2')
     return $ theta2 <^> theta1
-  unify (TList t) (TList t') = do
-    unify t t'
+  unify (TList t) (TList t') = unify t t'
+  unify (TCutList t) (TCutList t') = unify t t'
   unify t1 t2 | t1 == t2 = return M.empty
-  unify t1 t2 = error $ "unify undefined for " ++ show t1 ++ " and "  ++ show t2
+  unify t1 t2 = error $ "unification undefined for " ++ show t1 ++ " and "  ++ show t2
   -- unify _ _ = undefined
 
 instance Unifiable CType where
@@ -176,6 +180,14 @@ inferV (Vlist (v:vs)) = do
   put ctx
   theta3 <- unify (TList (theta2 <@> a1)) a2
   return (theta3 <@> a2, theta3 <^> theta2 <^> theta1)
+inferV (Vret v) = do
+  (a, theta) <- inferV v
+  case a of TList t -> return (TCutList t, theta)
+            _ -> throwError "opened should take a list"
+inferV (Vflag v) = do
+  (a, theta) <- inferV v
+  case a of TList t -> return (TCutList t, theta)
+            _ -> throwError "closed should take a list"
 inferV (Vsum (Left v)) = do
   (a, theta) <- inferV v
   alpha <- freshV
@@ -381,25 +393,6 @@ inferC (Case v x c1 y c2) = do
   (uD, theta4) <- inferC c2
   theta5 <- unify (theta4 <@> uC) uD
   return (theta5 <@> uD, theta5 <^> theta4 <^> theta3 <^> theta2 <^> theta1)
-inferC (Eq v1 v2) = do
-  (a1, theta1) <- inferV v1
-  ctx <- get
-  put $ theta1 <@> ctx
-  (a2, theta2) <- inferV v2
-  theta3 <- unify (theta2 <@> a1) a2
-  put ctx
-  mu <- freshE
-  return (TBool <!> mu, theta3 <^> theta2 <^> theta1)
-inferC (Add v1 v2) = do
-  (a1, theta1) <- inferV v1
-  theta2 <- unify a1 TInt
-  ctx <- get
-  put $ theta2 <@> theta1 <@> ctx
-  (a2, theta3) <- inferV v2
-  put ctx
-  theta4 <- unify a2 TInt
-  mu <- freshE
-  return (TInt <!> mu, theta4 <^> theta3 <^> theta2 <^> theta1)
 inferC (Absurd v) = do
   (a, theta1) <- inferV v
   theta2 <- unify a TEmpty
@@ -446,11 +439,21 @@ inferC (Sc l v (y :. c1) (z :. c2)) = do
 --   theta2 <- unify a (TPair alpha1 alpha2)
 --   mu <- freshE
 --   return (CT (apply theta2 alpha1) mu, theta2 <^> theta1)
+inferC (Add v1 v2) = inferFunc2 "add" v1 v2
+inferC (Minus v1 v2) = inferFunc2 "minus" v1 v2
+inferC (Eq v1 v2) = inferFunc2 "eq" v1 v2
 inferC (Fst v) = inferFunc1 "fst" v
 inferC (Snd v) = inferFunc1 "snd" v
 inferC (Head v) = inferFunc1 "head" v
 inferC (Append v1 v2) = inferFunc2 "append" v1 v2
+inferC (AppendCut v1 v2) = inferFunc2 "appendCut" v1 v2
 inferC (ConcatMap v1 v2) = inferFunc2 "concatMap" v1 v2
+inferC (ConcatMapCutList v1 v2) = inferFunc2 "concatMapCutList" v1 v2
+inferC (Newmem v) = inferFunc1 "newmem" v
+inferC (Update v1 v2) = inferFunc2 "update" v1 v2
+inferC (Retrieve v1 v2) = inferFunc2 "retrieve" v1 v2
+inferC (Open v) = inferFunc1 "open" v
+inferC (Close v) = inferFunc1 "close" v
 
 inferC oth = error $ "inferC undefined for " ++ show oth
 

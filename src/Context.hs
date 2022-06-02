@@ -25,6 +25,12 @@ sigma =
   , ("raise", (TString, TEmpty))
   , ("catch", (TString, TBool))
   , ("inc", (TUnit, TInt))
+  , ("get", (TString, TInt))
+  , ("put", (TPair TString TInt, TUnit))
+  , ("local", (TPair TString TInt, TUnit))
+  , ("cut", (TUnit, TUnit))
+  , ("call", (TUnit, TUnit))
+  , ("depth", (TInt, TUnit))
   ]
 
 emptyctx :: Context

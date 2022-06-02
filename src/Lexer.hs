@@ -91,6 +91,8 @@ langDef = emptyDef
             , "Empty"
             , "Sum"
             , "Arr"
+            , "Mem"
+            , "CutList"
             ----------------
             , "Eff"
             ]

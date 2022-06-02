@@ -20,10 +20,16 @@ instance Applicable VType where
     _ -> error "expect a value type variable"
   apply s (TArr t1 t2) = TArr (apply s t1) (apply s t2)
   apply s (TPair t1 t2) = TPair (apply s t1) (apply s t2)
+  apply s (TMem t1 t2) = TMem (apply s t1) (apply s t2)
   apply s (TSum t1 t2) = TSum (apply s t1) (apply s t2)
   apply s (THand t1 t2) = THand (apply s t1) (apply s t2)
   apply s (TList t) = TList (apply s t)
-  apply s oth = oth
+  apply s (TCutList t) = TCutList (apply s t)
+  apply s TString = TString
+  apply s TUnit = TUnit
+  apply s TBool = TBool
+  apply s TInt = TInt
+  apply s TEmpty = TEmpty
 
 instance Applicable CType where
   apply s (CT v e) = CT (apply s v) (apply s e)
