@@ -165,9 +165,11 @@ data TypeOpt
   | TNil VType
   deriving (Show, Eq)
 
-applyTyOpt :: TypeOpt -> VType -> EType -> VType
-applyTyOpt ty vt et = let (TNil res) = applyTyOptE (applyTyOptV ty vt) et
-                      in res
+-- applyTyOpt :: TypeOpt -> VType -> EType -> VType
+-- applyTyOpt ty vt et = let (TNil res) = applyTyOptE (applyTyOptV ty vt) et in res
+
+applyTyOpt :: TypeOpt -> VType -> VType
+applyTyOpt ty vt = let (TNil res) = applyTyOptV ty vt in res
 
 applyTyOptV :: TypeOpt -> VType -> TypeOpt
 applyTyOptV (TNil _) t = error "applyTyOpt : not applicable"

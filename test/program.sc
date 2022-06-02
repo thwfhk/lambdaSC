@@ -1,4 +1,5 @@
-DEF hInc = handler [\ x : * . \ mu : Eff . Arr Int ((x, Int) ! mu)]
+DEF hInc = handler [\ x : * . Arr Int ((x, Int) ! mu)]
+-- DEF hInc = handler [\ x : * . \ mu : Eff . Arr Int ((x, Int) ! mu)]
   { return x   |-> return (\ s . return (x, s))
   , op inc _ k |-> return (\ s . do s1 <- (s + 1); k s s1)
   , fwd f p k  |-> return (\ s . f (
@@ -7,7 +8,8 @@ DEF hInc = handler [\ x : * . \ mu : Eff . Arr Int ((x, Int) ! mu)]
     ))
   }
 
-DEF hOnce = handler [\ x : * . \ _ : Eff . List x]
+DEF hOnce = handler [\ x : * . List x]
+-- DEF hOnce = handler [\ x : * . \ _ : Eff . List x]
   { return x      |-> return [x]
   -- , op fail _ _   |-> return []
   , op choose _ k |-> do xs <- k true; do ys <- k false ; xs ++ ys
@@ -20,7 +22,8 @@ DEF exceptMap = \ z . return (
                   right x -> k x
 )
 
-DEF hExcept = handler [\ x : * . \ _ : Eff . Sum String x]
+DEF hExcept = handler [\ x : * . Sum String x]
+-- DEF hExcept = handler [\ x : * . \ _ : Eff . Sum String x]
   { return x       |-> return (right x)
   , op raise e k   |-> return (left e)
   , sc catch e p k |->

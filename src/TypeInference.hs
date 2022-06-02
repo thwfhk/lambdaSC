@@ -205,10 +205,10 @@ inferV (Vhandler h) = do
   (uC'', theta3) <- inferFwd h
   put ctx
   let m = carrier h
-  let uD = theta3 <@> theta2 <@> theta1 <@> CT (applyTyOpt m alpha mu) mu
+  let uD = theta3 <@> theta2 <@> theta1 <@> CT (applyTyOpt m alpha) mu
   theta4 <- unifyList [(theta3 <@> theta2 <@> uC, uD), (theta3 <@> uC', uD), (uC'', uD)]
   let theta = theta4 <^> theta3 <^> theta2 <^> theta1
-  return (theta <@> THand (CT alpha f) (CT (applyTyOpt m alpha mu) mu), theta)
+  return (theta <@> THand (CT alpha f) (CT (applyTyOpt m alpha) mu), theta)
 
 inferV oth = error $ "inferV undefined for " ++ show oth
 
@@ -268,7 +268,7 @@ inferSc m ((l, (x, p, k, c)) : scs) = do
   ctx <- get
   let nctx = addBindings (theta1 <@> ctx)
         [ (x, TypeBind $ Mono al)
-        , (p, TypeBind . Mono $ TArr bl (CT (applyTyOpt m beta mu) mu))
+        , (p, TypeBind . Mono $ TArr bl (CT (applyTyOpt m beta) mu))
         , (k, TypeBind . Mono $ TArr beta (CT alpha mu)) ]
   put nctx
   (uC, theta2) <- inferC c
@@ -288,9 +288,9 @@ inferFwd h = do
   mu <- freshE
   alpha' <- freshV
   -- traceM $ "look: " ++ getVarName alpha ++ " " ++ getVarName alpha'
-  let ap  = alpha <->> applyTyOpt m beta mu <!> mu
+  let ap  = alpha <->> applyTyOpt m beta <!> mu
   let ap' = alpha <->> gamma <!> mu
-  let ak  = beta <->> applyTyOpt m alpha' mu <!> mu
+  let ak  = beta <->> applyTyOpt m alpha' <!> mu
   -- let ak' = gamma <->> applyTyOpt m alpha' mu <!> mu
   let ak' = gamma <->> gamma' <!> mu
   ctx <- get
@@ -306,7 +306,7 @@ inferFwd h = do
   put ctx
   -- traceM $ "### " ++ show uC ++ "\n### " ++ show (theta1 <@> applyTyOpt m alpha' mu <!> mu)
   -- traceM $ "m: " ++ show m
-  theta2 <- unify uC (theta1 <@> applyTyOpt m alpha' mu <!> mu)
+  theta2 <- unify uC (theta1 <@> applyTyOpt m alpha' <!> mu)
   return (theta2 <@> uC, theta2 <^> theta1)
 
 inferC :: Comp -> W (CType, Theta)
