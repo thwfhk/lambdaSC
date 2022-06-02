@@ -165,6 +165,10 @@ catch = "\
   \ \n\
   \---------------------------------------------------------------- \n\
   \ \n\
+  \RUN hExcept # \n\
+  \  sc catch \"SAR\" (b . if b then op raise \"SAR\" (y . absurd y) \n\
+  \                      else return \"SAR is caught!\") \n\
+  \ \n\
   \RUN hExcept # (do f <- hInc # ( \n\
   \  sc catch \"Overflow\" \n\
   \    (b . if b then do x <- op inc unit; \n\
