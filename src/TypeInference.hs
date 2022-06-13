@@ -233,7 +233,7 @@ inferV (Vhandler h) = do
   (uC3, theta4) <- inferFwd h
   let CT (TApp m' a3) e3 = uC3
   m <- return $ theta4 <^> theta3 <@> m 
-  traceM $ "what???\n" ++ show m ++ "\n" ++ show m'
+  -- traceM $ "what???\n" ++ show m ++ "\n" ++ show m'
   when (m' /= m) $ do
     throwError "infer handler : different carrier"
   case a3 of
@@ -243,7 +243,9 @@ inferV (Vhandler h) = do
   put ctx
 
   let a4 = theta5 <@> a3
-  when (S.member (getVarName a4, ValueType) (freeVars $ theta5 <^> theta4 <@> nctx)) $
+  when (S.member (getVarName a4, ValueType) (freeVars $ theta5 <^> theta4 <@> nctx)) $ do
+    traceM (getVarName a4)
+    traceM $ show (theta5 <^> theta4 <@> nctx)
     throwError "infer handler : handler is not polymorphic"
 
   let f = appendEff (oplist h ++ sclist h) (theta5 <@> e3)
@@ -262,6 +264,7 @@ inferRet h = do
   put (addBinding ctx (x, TypeBind $ Mono alpha))
   (uC, theta1) <- inferC cr
   theta2 <- unify uC (theta1 <@> TApp m alpha <!> mu)
+  put ctx
   return (theta2 <^> theta1 <@> TApp m alpha <!> mu, theta2 <^> theta1)
 
 -- | operation clauses
@@ -328,8 +331,14 @@ inferSc m ((l, (x, p, k, c)) : scs) = do
   (uC, theta2) <- inferC c
   put ctx
   theta3 <- unify uC (theta2 <@> uD)
-  when (M.member (getVarName beta) (theta3 <^> theta2 <^> theta1)) -- beta notin dom(theta2 <^> theta1)
-    $ throwError "inferSc: beta is substituted"
+  -- beta notin dom(theta2 <^> theta1)
+  when (M.member (getVarName beta) (theta3 <^> theta2 <^> theta1)) $ do
+      -- 因为实现中没有区分type variable和unification variable，所以先允许被替换成其他variable
+      let t = M.lookup (getVarName beta) (theta3 <^> theta2 <^> theta1)
+      case t of
+        Nothing -> return ()
+        Just (Left (TVar _)) -> return()
+        Just _ -> throwError "inferSc: beta is substituted"
   return (theta3 <^> theta2 <@> uD, theta3 <^> theta2 <^> theta1)
 
 

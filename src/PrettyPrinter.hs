@@ -110,6 +110,7 @@ instance MyTypePrinter VType where
     TBool -> return "Bool"
     TInt -> return "Int"
     TEmpty -> return "Empty"
+    TApp m t -> printy (applyTyOpt m t)
 
 instance MyTypePrinter EType where
   printy et = case et of
