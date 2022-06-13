@@ -133,6 +133,7 @@ data VType
   | TBool
   | TInt
   | TEmpty
+  | TApp TypeOpt VType
   deriving (Show, Eq)
 
 data CType = CT VType EType

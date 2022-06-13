@@ -30,6 +30,7 @@ instance Applicable VType where
   apply s TBool = TBool
   apply s TInt = TInt
   apply s TEmpty = TEmpty
+  apply s (TApp m a) = TApp (apply s m) (apply s a)
 
 instance Applicable CType where
   apply s (CT v e) = CT (apply s v) (apply s e)
@@ -51,6 +52,10 @@ instance Applicable SType where
 instance Applicable Type where
   apply s (Left t) = Left $ apply s t
   apply s (Right t) = Right $ apply s t
+
+instance Applicable TypeOpt where
+  apply s (TNil t) = TNil (apply s t)
+  apply s (TAbs x k t) = TAbs x k (apply (M.delete x s) t)
 
 infixr 7 <@> 
 (<@>) :: Applicable a => Theta -> a -> a
