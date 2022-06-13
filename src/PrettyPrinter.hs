@@ -147,6 +147,10 @@ instance MyTypePrinter CType where
     s <- case vt of
           TArr _ _ -> do s <- printy vt; return $ addParens s
           TSum _ _ -> do s <- printy vt; return $ addParens s
+          TApp m t -> case applyTyOpt m t of
+                        TArr _ _ -> do s <- printy vt; return $ addParens s
+                        TSum _ _ -> do s <- printy vt; return $ addParens s
+                        _ -> printy vt
           _ -> printy vt
     es <- printy et
     return $ s ++ " ! " ++ es

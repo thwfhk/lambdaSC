@@ -207,7 +207,7 @@ inferV (Vhandler h) = do
   -- kind check m 
 
   -- return clause
-  (uC1, theta1) <- inferRet h
+  (uC1, theta1) <- inferRet h m
   let CT (TApp m' a1) e1 = uC1
   m <- return $ theta1 <@> m -- TODO: add this to other places
   when (m' /= m) $ throwError "infer handler : different carrier"
@@ -218,7 +218,7 @@ inferV (Vhandler h) = do
 
   -- op & sc clauses
   put (theta1 <@> ctx)
-  (uC2, theta2) <- inferOpr h
+  (uC2, theta2) <- inferOpr h m
   let CT (TApp m' a2) e2 = uC2
   m <- return $ theta2 <@> m 
   when (m' /= m) $ throwError "infer handler : different carrier"
@@ -230,7 +230,7 @@ inferV (Vhandler h) = do
   -- fwd clauses
   let nctx = theta3 <^> theta2 <^> theta1 <@> ctx
   put nctx
-  (uC3, theta4) <- inferFwd h
+  (uC3, theta4) <- inferFwd h m
   let CT (TApp m' a3) e3 = uC3
   m <- return $ theta4 <^> theta3 <@> m 
   -- traceM $ "what???\n" ++ show m ++ "\n" ++ show m'
@@ -243,9 +243,7 @@ inferV (Vhandler h) = do
   put ctx
 
   let a4 = theta5 <@> a3
-  when (S.member (getVarName a4, ValueType) (freeVars $ theta5 <^> theta4 <@> nctx)) $ do
-    traceM (getVarName a4)
-    traceM $ show (theta5 <^> theta4 <@> nctx)
+  when (S.member (getVarName a4, ValueType) (freeVars $ theta5 <^> theta4 <@> nctx)) $
     throwError "infer handler : handler is not polymorphic"
 
   let f = appendEff (oplist h ++ sclist h) (theta5 <@> e3)
@@ -254,9 +252,8 @@ inferV (Vhandler h) = do
 
 inferV oth = error $ "inferV undefined for " ++ show oth
 
-inferRet :: Handler -> W (CType, Theta)
-inferRet h = do
-  let m = carrier h
+inferRet :: Handler -> TypeOpt -> W (CType, Theta)
+inferRet h m = do
   let (x, cr) = hreturn h
   alpha <- freshV
   mu <- freshE
@@ -268,9 +265,8 @@ inferRet h = do
   return (theta2 <^> theta1 <@> TApp m alpha <!> mu, theta2 <^> theta1)
 
 -- | operation clauses
-inferOpr :: Handler -> W (CType, Theta)
-inferOpr h = do
-  let m = carrier h
+inferOpr :: Handler -> TypeOpt -> W (CType, Theta)
+inferOpr h m = do
   (uC1, theta1) <- inferOp m ops -- also need the carrier
   ctx <- get
   put (theta1 <@> ctx)
@@ -301,6 +297,7 @@ inferOp m ((l, (x, k, c)) : ops) = do
   (_, (al, bl)) <- name2entry sigma l
   (uD, theta1) <- inferOp m ops
   let CT (TApp m' a) e = uD -- if not, an error will be throwed
+  m <- return $ theta1 <@> m
   when (m' /= m) $ throwError "inferOp : different carrier"
   ctx <- get
   let nctx = addBindings (theta1 <@> ctx)
@@ -320,6 +317,7 @@ inferSc m ((l, (x, p, k, c)) : scs) = do
   beta <- freshV
   (uD, theta1) <- inferSc m scs
   let CT (TApp m' a) e = uD
+  m <- return $ theta1 <@> m
   when (m' /= m) $ throwError "inferSc : different carrier"
   ctx <- get
   let nctx = addBindings (theta1 <@> ctx)
@@ -333,7 +331,7 @@ inferSc m ((l, (x, p, k, c)) : scs) = do
   theta3 <- unify uC (theta2 <@> uD)
   -- beta notin dom(theta2 <^> theta1)
   when (M.member (getVarName beta) (theta3 <^> theta2 <^> theta1)) $ do
-      -- 因为实现中没有区分type variable和unification variable，所以先允许被替换成其他variable
+      -- 因为没有区分type variable和unification variable，所以先允许被替换成其他variable
       let t = M.lookup (getVarName beta) (theta3 <^> theta2 <^> theta1)
       case t of
         Nothing -> return ()
@@ -342,9 +340,8 @@ inferSc m ((l, (x, p, k, c)) : scs) = do
   return (theta3 <^> theta2 <@> uD, theta3 <^> theta2 <^> theta1)
 
 
-inferFwd :: Handler -> W (CType, Theta)
-inferFwd h = do
-  let m = carrier h
+inferFwd :: Handler -> TypeOpt -> W (CType, Theta)
+inferFwd h m = do
   let (f, p, k, cf) = hfwd h
   alpha <- freshV
   beta <- freshV
