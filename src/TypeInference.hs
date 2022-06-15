@@ -20,16 +20,28 @@ freshV :: W VType
 freshV = do
   i <- lift . lift $ get
   lift . lift $ put (i+1)
-  return (TVar ('$' : show i))
+  return $ TVar ('$' : show i) False
 
 freshE :: W EType
 freshE = do
   i <- lift . lift $ get
   lift . lift $ put (i+1)
-  return (EVar ('$' : show i))
+  return $ EVar ('$' : show i) False
+
+freshTV :: W VType
+freshTV = do
+  i <- lift . lift $ get
+  lift . lift $ put (i+1)
+  return $ TVar ('$' : show i) True
+
+freshTE :: W EType
+freshTE = do
+  i <- lift . lift $ get
+  lift . lift $ put (i+1)
+  return $ EVar ('$' : show i) True
 
 getVarName :: VType -> Name
-getVarName (TVar x) = x
+getVarName (TVar x _) = x
 getVarName oth = error "getVarName: not a variable"
 
 inst :: SType -> W VType
@@ -63,20 +75,16 @@ class Unifiable a where
 instance Unifiable VType where
   unify (TApp m t) t' = unify (applyTyOpt m t) t' -- type-level reduction
   unify t' (TApp m t) = unify t' (applyTyOpt m t)
-  unify (TVar x) (TVar y) | x == y = return M.empty
-  unify (TVar x) t | x `S.member` S.map fst (freeVars t) =
-    trace ("[[[ " ++ show (TVar x) ++ " ||| " ++ show t ++ " ]]]") $
-    throwError
-    "[unification fail] free value type variable appearing in the other type"
-  unify (TVar x) t  = return $ M.singleton x (Left t)
-  unify t (TVar x) = unify (TVar x) t
+  unify (TVar x b1) (TVar y b2) | x == y && b1 == b2 = return M.empty
+  unify (TVar x False) t | x `S.member` S.map fst (freeVars t) =
+    throwError "[unification fail] free value type variable appearing in the other type"
+  unify (TVar x False) t  = return $ M.singleton x (Left t)
+    -- including the case that t is a type variable
+  unify t (TVar x False) = unify (TVar x False) t
   unify (TArr t1 c1) (TArr t2 c2) = do
     theta1 <- unify t1 t2
-    theta2 <- unify (apply theta1 c1) (apply theta1 c2) -- NOTE: need to apply theta1
+    theta2 <- unify (apply theta1 c1) (apply theta1 c2)
     return $ theta2 <^> theta1
-  -- unify (TApp m1 t1) (TApp m2 t2) = do
-  --   when (m1 /= m2) $ throwError "unification : different carriers"
-  --   unify t1 t2
   unify (TPair t1 t2) (TPair t1' t2') = do
     theta1 <- unify t1 t1'
     theta2 <- unify (apply theta1 t2) (apply theta1 t2')
@@ -108,11 +116,11 @@ instance Unifiable CType where
 -- NOTE: simplification: there is no need to substitute labels
 instance Unifiable EType where
   unify EEmpty EEmpty = return M.empty
-  unify (EVar x) (EVar y) | x == y = return M.empty
-  unify (EVar x) t | x `S.member` S.map fst (freeVars t) = throwError
+  unify (EVar x b1) (EVar y b2) | x == y && b1 == b2 = return M.empty
+  unify (EVar x False) t | x `S.member` S.map fst (freeVars t) = throwError
     "[unification fail] free effect type variable appearing in the other type"
-  unify (EVar x) t  = return $ M.singleton x (Right t)
-  unify t (EVar x) = unify (EVar x) t
+  unify (EVar x False) t  = return $ M.singleton x (Right t)
+  unify t (EVar x False) = unify (EVar x False) t
   unify (ECons l t1) t2 = do
     -- traceM $ "unify ECone: " ++ show (ECons l t1) ++ " and " ++ show t2 
     (t3, theta1) <- findLabel l t2
@@ -122,15 +130,16 @@ instance Unifiable EType where
     theta2 <- unify t1 t3
     return $ theta2 <^> theta1
   unify t2 (ECons l t1) = unify (ECons l t1) t2
+  unify t1 t2 = throwError $ "unification undefined for " ++ show t1 ++ " and "  ++ show t2
 
 tailEffType :: EType -> Maybe Name
 tailEffType EEmpty = Nothing
-tailEffType (EVar x) = Just x
+tailEffType (EVar x b) = Just x
 tailEffType (ECons l t) = tailEffType t
 
 findLabel :: Name -> EType -> W (EType, Theta)
 findLabel x EEmpty = throwError $ "findLabel: no label " ++ x ++ " found"
-findLabel x (EVar y) = do
+findLabel x (EVar y b) = do
   mu <- freshE
   let theta = M.singleton y (Right $ ECons x mu)
   return (mu, theta)
@@ -209,10 +218,10 @@ inferV (Vhandler h) = do
   -- return clause
   (uC1, theta1) <- inferRet h m
   let CT (TApp m' a1) e1 = uC1
-  m <- return $ theta1 <@> m -- TODO: add this to other places
+  m <- return $ theta1 <@> m
   when (m' /= m) $ throwError "infer handler : different carrier"
   case a1 of
-    TVar _ -> return ()
+    TVar _ _ -> return ()
     _ -> throwError "infer handler : the return clause is not polymorphic"
   ctx <- get
 
@@ -223,7 +232,7 @@ inferV (Vhandler h) = do
   m <- return $ theta2 <@> m 
   when (m' /= m) $ throwError "infer handler : different carrier"
   case a2 of
-    TVar _ -> return ()
+    TVar _ _ -> return ()
     _ -> throwError "infer handler : operation clauses are not polymorphic"
   theta3 <- unify (theta2 <@> a1 <!> e1) (a2 <!> e2)
 
@@ -237,18 +246,22 @@ inferV (Vhandler h) = do
   when (m' /= m) $ do
     throwError "infer handler : different carrier"
   case a3 of
-    TVar _ -> return ()
+    TVar _ _ -> return ()
     _ -> throwError "infer handler : operation clauses are not polymorphic"
   theta5 <- unify (theta4 <^> theta3 <@> a2 <!> e2) (a3 <!> e3)
   put ctx
 
+  let theta = theta5 <^> theta4 <^> theta3 <^> theta2 <^> theta1
   let a4 = theta5 <@> a3
   when (S.member (getVarName a4, ValueType) (freeVars $ theta5 <^> theta4 <@> nctx)) $
     throwError "infer handler : handler is not polymorphic"
 
+  let hm = carrier h -- the original m
+  when (freeVars hm `S.intersection` freeVars (theta <@> ctx) /= S.empty) $ do
+    throwError "infer handler : free variables in M will escape"
+
   let f = appendEff (oplist h ++ sclist h) (theta5 <@> e3)
-  return ( THand (a4 <!> f) (theta5 <@> TApp m a4 <!> e3)
-         , theta5 <^> theta4 <^> theta3 <^> theta2 <^> theta1 )
+  return ( THand (a4 <!> f) (theta5 <@> TApp m a4 <!> e3), theta)
 
 inferV oth = error $ "inferV undefined for " ++ show oth
 
@@ -314,7 +327,7 @@ inferSc :: TypeOpt -> [(Name, (Name, Name, Name, Comp))] -> W (CType, Theta)
 inferSc m [] = inferEmp m
 inferSc m ((l, (x, p, k, c)) : scs) = do
   (_, (al, bl)) <- name2entry sigma l
-  beta <- freshV
+  beta <- freshTV -- fresh value type variable
   (uD, theta1) <- inferSc m scs
   let CT (TApp m' a) e = uD
   m <- return $ theta1 <@> m
@@ -330,23 +343,25 @@ inferSc m ((l, (x, p, k, c)) : scs) = do
   put ctx
   theta3 <- unify uC (theta2 <@> uD)
   -- beta notin dom(theta2 <^> theta1)
-  when (M.member (getVarName beta) (theta3 <^> theta2 <^> theta1)) $ do
-      -- 因为没有区分type variable和unification variable，所以先允许被替换成其他variable
-      let t = M.lookup (getVarName beta) (theta3 <^> theta2 <^> theta1)
-      case t of
-        Nothing -> return ()
-        Just (Left (TVar _)) -> return()
-        Just _ -> throwError "inferSc: beta is substituted"
+  when (M.member (getVarName beta) (theta3 <^> theta2 <^> theta1)) $
+    throwError "inferSc: beta is substituted"
+  -- when (M.member (getVarName beta) (theta3 <^> theta2 <^> theta1)) $ do
+  --     -- 因为没有区分type variable和unification variable，所以先允许被替换成其他variable
+  --     let t = M.lookup (getVarName beta) (theta3 <^> theta2 <^> theta1)
+  --     case t of
+  --       Nothing -> return ()
+  --       Just (Left (TVar _ _)) -> return()
+  --       Just _ -> throwError "inferSc: beta is substituted"
   return (theta3 <^> theta2 <@> uD, theta3 <^> theta2 <^> theta1)
 
 
 inferFwd :: Handler -> TypeOpt -> W (CType, Theta)
 inferFwd h m = do
   let (f, p, k, cf) = hfwd h
-  alpha <- freshV
-  beta <- freshV
-  gamma <- freshV
-  delta <- freshV
+  alpha <- freshTV
+  beta <- freshTV
+  gamma <- freshTV
+  delta <- freshTV
   mu <- freshE
   alpha' <- freshV
   -- let ap  = alpha <->> applyTyOpt m beta <!> mu
@@ -365,6 +380,12 @@ inferFwd h m = do
   (uC, theta1) <- inferC cf
   put ctx
   theta2 <- unify uC (theta1 <@> TApp m alpha' <!> mu)
+  when (  M.member (getVarName alpha) (theta2 <^> theta1) 
+       || M.member (getVarName beta) (theta2 <^> theta1)
+       || M.member (getVarName gamma) (theta2 <^> theta1)
+       || M.member (getVarName delta) (theta2 <^> theta1)
+       ) $
+    throwError "inferFwd: type variables are substituted"
   return (theta2 <^> theta1 <@> TApp m alpha' <!> mu, theta2 <^> theta1)
 
 inferC :: Comp -> W (CType, Theta)

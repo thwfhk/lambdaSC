@@ -438,7 +438,7 @@ parseVType = (whiteSpace >>) $ choice
 parseTVar :: Parser VType
 parseTVar = do
   var <- identifier
-  return $ TVar var
+  return $ TVar var True
 
 parseTUnit :: Parser VType
 parseTUnit = reserved "Unit" >> return TUnit
@@ -545,4 +545,4 @@ parseEOpen = do
 parseEVar :: Parser EType
 parseEVar = do
   var <- identifier
-  return $ EVar var
+  return $ EVar var True

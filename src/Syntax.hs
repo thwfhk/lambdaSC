@@ -120,7 +120,7 @@ h # c = Handle h c
 
 -- value type
 data VType
-  = TVar Name
+  = TVar Name Bool -- name, true : type variable / false : unification variable
   | TArr VType CType
   | TPair VType VType
   | TSum VType VType
@@ -145,7 +145,7 @@ infixr 8 <->>
 (<->>) = TArr
 
 data EType
-  = EVar Name
+  = EVar Name Bool -- name, true : type variable / false : unification variable
   | EEmpty
   | ECons Name EType
   deriving (Show, Eq)
@@ -207,8 +207,8 @@ instance SubstEffectType TypeOpt where
 
 instance SubstValueType VType where
   substVT (x, t) a = case a of
-    TVar y | x == y -> t
-    TVar y | x /= y -> TVar y
+    TVar y _ | x == y -> t
+    TVar y b | x /= y -> TVar y b
     TArr t1 (CT t2 e) -> TArr (substVT (x, t) t1) (CT (substVT (x, t) t2) e)
     TPair t1 t2 -> TPair (substVT (x, t) t1) (substVT (x, t) t2)
     TMem t1 t2 -> TMem (substVT (x, t) t1) (substVT (x, t) t2)
@@ -225,7 +225,7 @@ instance SubstValueType VType where
 
 instance SubstEffectType VType where
   substET (x, t) a = case a of
-    TVar y -> TVar y
+    TVar y b -> TVar y b
     TArr t1 (CT t2 e) -> TArr (substET (x, t) t1) (CT (substET (x, t) t2) (substET (x, t) e))
     TPair t1 t2 -> TPair (substET (x, t) t1) (substET (x, t) t2)
     TMem t1 t2 -> TMem (substET (x, t) t1) (substET (x, t) t2)
@@ -243,8 +243,8 @@ instance SubstEffectType VType where
 instance SubstEffectType EType where
   substET (x, t) a = case a of
     EEmpty -> EEmpty
-    EVar y | x == y -> t
-    EVar y | x /= y -> EVar y
+    EVar y _ | x == y -> t
+    EVar y b | x /= y -> EVar y b
     ECons l e -> ECons l (substET (x, t) e)
     -- non-exhaustive ??
 
@@ -255,7 +255,7 @@ class FreeVars a where
   freeVars :: a -> S.Set (Name, Kind)
 
 instance FreeVars VType where
-  freeVars (TVar x) = S.singleton (x, ValueType)
+  freeVars (TVar x _) = S.singleton (x, ValueType)
   freeVars (TArr t1 t2) = freeVars t1 `S.union` freeVars t2
   freeVars (TPair t1 t2) = freeVars t1 `S.union` freeVars t2
   freeVars (TSum t1 t2) = freeVars t1 `S.union` freeVars t2
@@ -271,7 +271,7 @@ instance FreeVars CType where
   freeVars (CT t1 t2) = freeVars t1 `S.union` freeVars t2
 
 instance FreeVars EType where
-  freeVars (EVar x) = S.singleton (x, EffectType)
+  freeVars (EVar x _) = S.singleton (x, EffectType)
   freeVars (ECons _ t2) = freeVars t2
   freeVars EEmpty = S.empty
 
@@ -279,6 +279,9 @@ instance FreeVars Type where
   freeVars (Left t) = freeVars t
   freeVars (Right t) = freeVars t
 
+instance FreeVars TypeOpt where
+  freeVars (TNil vt) = freeVars vt
+  freeVars (TAbs x k t) = S.delete (x, k) (freeVars t)
 ----------------------------------------------------------------
 -- built-in functions
 
@@ -339,9 +342,9 @@ builtInFuncType s = case s of
     fa s = Forall ("alpha_" ++ s) ValueType
     fb s = Forall ("beta_" ++ s) ValueType
     fmu s = Forall ("mu_" ++ s) EffectType
-    a s = TVar ("alpha_" ++ s)
-    b s = TVar ("beta_" ++ s)
-    mu s = EVar ("mu_" ++ s)
+    a s = TVar ("alpha_" ++ s) True
+    b s = TVar ("beta_" ++ s) True
+    mu s = EVar ("mu_" ++ s) True
 
 ----------------------------------------------------------------
 -- Utilities
