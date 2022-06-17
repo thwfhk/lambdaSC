@@ -66,13 +66,39 @@ gen theta t = do
 
 
 ----------------------------------------------------------------
--- unification
+-- type-level reduction
 
+class Reducible a where
+  reduce :: a -> a
+
+instance Reducible VType where
+  reduce (TApp m t) = applyTyOpt (reduce m) (reduce t)
+  reduce (TArr t1 t2) = TArr (reduce t1) (reduce t2)
+  reduce (TPair t1 t2) = TPair (reduce t1) (reduce t2)
+  reduce (TSum t1 t2) = TSum (reduce t1) (reduce t2)
+  reduce (THand t1 t2) = THand (reduce t1) (reduce t2)
+  reduce (TMem t1 t2) = TMem (reduce t1) (reduce t2)
+  reduce (TList t) = TList (reduce t)
+  reduce (TCutList t) = TCutList (reduce t)
+  reduce oth = oth
+
+instance Reducible CType where
+  reduce (CT t1 t2) = CT (reduce t1) t2
+
+instance Reducible TypeOpt where
+  reduce (TAbs x k t) = TAbs x k (reduce t)
+  reduce (TNil t) = TNil (reduce t)
+
+isReducible :: (Eq a, Reducible a) => a -> Bool
+isReducible t = reduce t /= t
+----------------------------------------------------------------
+-- unification
 
 class Unifiable a where
   unify :: a -> a -> W Theta
 
 instance Unifiable VType where
+  unify t1 t2 | isReducible t1 || isReducible t2 = unify (reduce t1) (reduce t2)
   unify (TApp m t) t' = unify (applyTyOpt m t) t' -- type-level reduction
   unify t' (TApp m t) = unify t' (applyTyOpt m t)
   unify (TVar x b1) (TVar y b2) | x == y && b1 == b2 = return M.empty
@@ -119,7 +145,7 @@ instance Unifiable EType where
   unify (EVar x b1) (EVar y b2) | x == y && b1 == b2 = return M.empty
   unify (EVar x False) t | x `S.member` S.map fst (freeVars t) = throwError
     "[unification fail] free effect type variable appearing in the other type"
-  unify (EVar x False) t  = return $ M.singleton x (Right t)
+  unify (EVar x False) t = return $ M.singleton x (Right t)
   unify t (EVar x False) = unify (EVar x False) t
   unify (ECons l t1) t2 = do
     -- traceM $ "unify ECone: " ++ show (ECons l t1) ++ " and " ++ show t2 
