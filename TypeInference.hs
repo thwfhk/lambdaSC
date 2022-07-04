@@ -20,16 +20,28 @@ freshV :: W VType
 freshV = do
   i <- lift . lift $ get
   lift . lift $ put (i+1)
-  return (TVar ('$' : show i))
+  return $ TVar ('$' : show i) False
 
 freshE :: W EType
 freshE = do
   i <- lift . lift $ get
   lift . lift $ put (i+1)
-  return (EVar ('$' : show i))
+  return $ EVar ('$' : show i) False
+
+freshTV :: W VType
+freshTV = do
+  i <- lift . lift $ get
+  lift . lift $ put (i+1)
+  return $ TVar ('$' : show i) True
+
+freshTE :: W EType
+freshTE = do
+  i <- lift . lift $ get
+  lift . lift $ put (i+1)
+  return $ EVar ('$' : show i) True
 
 getVarName :: VType -> Name
-getVarName (TVar x) = x
+getVarName (TVar x _) = x
 getVarName oth = error "getVarName: not a variable"
 
 inst :: SType -> W VType
@@ -43,7 +55,7 @@ inst (Forall x k t) = case k of
     i <- freshE
     t' <- inst t
     return (apply (M.singleton x (Right i)) t')
-  CompType -> throwError "computation type should not be bound"
+  CompType -> throwError "computation type is not allowed to be quantified"
 
 gen :: Theta -> VType -> W SType
 gen theta t = do
@@ -54,23 +66,50 @@ gen theta t = do
 
 
 ----------------------------------------------------------------
--- unification
+-- type-level reduction
 
+class Reducible a where
+  reduce :: a -> a
+
+instance Reducible VType where
+  reduce (TApp m t) = applyTyOpt (reduce m) (reduce t)
+  reduce (TArr t1 t2) = TArr (reduce t1) (reduce t2)
+  reduce (TPair t1 t2) = TPair (reduce t1) (reduce t2)
+  reduce (TSum t1 t2) = TSum (reduce t1) (reduce t2)
+  reduce (THand t1 t2) = THand (reduce t1) (reduce t2)
+  reduce (TMem t1 t2) = TMem (reduce t1) (reduce t2)
+  reduce (TList t) = TList (reduce t)
+  reduce (TCutList t) = TCutList (reduce t)
+  reduce oth = oth
+
+instance Reducible CType where
+  reduce (CT t1 t2) = CT (reduce t1) t2
+
+instance Reducible TypeOpt where
+  reduce (TAbs x k t) = TAbs x k (reduce t)
+  reduce (TNil t) = TNil (reduce t)
+
+isReducible :: (Eq a, Reducible a) => a -> Bool
+isReducible t = reduce t /= t
+----------------------------------------------------------------
+-- unification
 
 class Unifiable a where
   unify :: a -> a -> W Theta
 
 instance Unifiable VType where
-  unify (TVar x) (TVar y) | x == y = return M.empty
-  unify (TVar x) t | x `S.member` S.map fst (freeVars t) =
-    trace ("[[[ " ++ show (TVar x) ++ " ||| " ++ show t ++ " ]]]") $
-    throwError
-    "[unification fail] free value type variable appearing in the other type"
-  unify (TVar x) t  = return $ M.singleton x (Left t)
-  unify t (TVar x) = unify (TVar x) t
+  unify t1 t2 | isReducible t1 || isReducible t2 = unify (reduce t1) (reduce t2)
+  unify (TApp m t) t' = unify (applyTyOpt m t) t' -- type-level reduction
+  unify t' (TApp m t) = unify t' (applyTyOpt m t)
+  unify (TVar x b1) (TVar y b2) | x == y && b1 == b2 = return M.empty
+  unify (TVar x False) t | x `S.member` S.map fst (freeVars t) =
+    throwError "[unification fail] free value type variable appearing in the other type"
+  unify (TVar x False) t  = return $ M.singleton x (Left t)
+    -- including the case that t is a type variable
+  unify t (TVar x False) = unify (TVar x False) t
   unify (TArr t1 c1) (TArr t2 c2) = do
     theta1 <- unify t1 t2
-    theta2 <- unify (apply theta1 c1) (apply theta1 c2) -- NOTE: need to apply theta1
+    theta2 <- unify (apply theta1 c1) (apply theta1 c2)
     return $ theta2 <^> theta1
   unify (TPair t1 t2) (TPair t1' t2') = do
     theta1 <- unify t1 t1'
@@ -91,7 +130,7 @@ instance Unifiable VType where
   unify (TList t) (TList t') = unify t t'
   unify (TCutList t) (TCutList t') = unify t t'
   unify t1 t2 | t1 == t2 = return M.empty
-  unify t1 t2 = error $ "unification undefined for " ++ show t1 ++ " and "  ++ show t2
+  unify t1 t2 = throwError $ "unification undefined for " ++ show t1 ++ " and "  ++ show t2
   -- unify _ _ = undefined
 
 instance Unifiable CType where
@@ -103,11 +142,11 @@ instance Unifiable CType where
 -- NOTE: simplification: there is no need to substitute labels
 instance Unifiable EType where
   unify EEmpty EEmpty = return M.empty
-  unify (EVar x) (EVar y) | x == y = return M.empty
-  unify (EVar x) t | x `S.member` S.map fst (freeVars t) = throwError
+  unify (EVar x b1) (EVar y b2) | x == y && b1 == b2 = return M.empty
+  unify (EVar x False) t | x `S.member` S.map fst (freeVars t) = throwError
     "[unification fail] free effect type variable appearing in the other type"
-  unify (EVar x) t  = return $ M.singleton x (Right t)
-  unify t (EVar x) = unify (EVar x) t
+  unify (EVar x False) t = return $ M.singleton x (Right t)
+  unify t (EVar x False) = unify (EVar x False) t
   unify (ECons l t1) t2 = do
     -- traceM $ "unify ECone: " ++ show (ECons l t1) ++ " and " ++ show t2 
     (t3, theta1) <- findLabel l t2
@@ -117,15 +156,16 @@ instance Unifiable EType where
     theta2 <- unify t1 t3
     return $ theta2 <^> theta1
   unify t2 (ECons l t1) = unify (ECons l t1) t2
+  unify t1 t2 = throwError $ "unification undefined for " ++ show t1 ++ " and "  ++ show t2
 
 tailEffType :: EType -> Maybe Name
 tailEffType EEmpty = Nothing
-tailEffType (EVar x) = Just x
+tailEffType (EVar x b) = Just x
 tailEffType (ECons l t) = tailEffType t
 
 findLabel :: Name -> EType -> W (EType, Theta)
 findLabel x EEmpty = throwError $ "findLabel: no label " ++ x ++ " found"
-findLabel x (EVar y) = do
+findLabel x (EVar y b) = do
   mu <- freshE
   let theta = M.singleton y (Right $ ECons x mu)
   return (mu, theta)
@@ -198,37 +238,68 @@ inferV (Vsum (Right v)) = do
   return (TSum alpha a, theta)
 
 inferV (Vhandler h) = do
-  alpha <- freshV
-  mu <- freshE
-  let f = appendEff (oplist h ++ sclist h) mu
-  ctx <- get
-  -- return clause
-  let (x, cr) = hreturn h
-  let nctx = addBinding ctx (x, TypeBind $ Mono alpha)
-  put nctx
-  (uC, theta1) <- inferC cr
-  -- op & sc clauses
-  let nctx = theta1 <@> ctx
-  put nctx
-  (uC', theta2) <- inferOpr h
-  -- fwd clauses
-  let nctx = theta2 <@> theta1 <@> ctx
-  put nctx
-  (uC'', theta3) <- inferFwd h
-  put ctx
   let m = carrier h
-  let uD = theta3 <@> theta2 <@> theta1 <@> CT (applyTyOpt m alpha) mu
-  theta4 <- unifyList [(theta3 <@> theta2 <@> uC, uD), (theta3 <@> uC', uD), (uC'', uD)]
-  let theta = theta4 <^> theta3 <^> theta2 <^> theta1
-  return (theta <@> THand (CT alpha f) (CT (applyTyOpt m alpha) mu), theta)
+
+  -- return clause
+  (uC1, theta1) <- inferRet h m
+  let CT (TApp m' a1) e1 = uC1
+  when (m' /= m) $ throwError "infer handler : different carrier"
+  case a1 of
+    TVar _ False -> return ()
+    _ -> throwError "infer handler : the return clause is not polymorphic"
+  ctx <- get
+
+  -- op & sc clauses
+  put (theta1 <@> ctx)
+  (uC2, theta2) <- inferOpr h m
+  let CT (TApp m' a2) e2 = uC2
+  when (m' /= m) $ throwError "infer handler : different carrier"
+  case a2 of
+    TVar _ False -> return ()
+    _ -> throwError "infer handler : operation clauses are not polymorphic"
+  theta3 <- unify (theta2 <@> a1 <!> e1) (a2 <!> e2)
+
+  -- fwd clauses
+  let nctx = theta3 <^> theta2 <^> theta1 <@> ctx
+  put nctx
+  (uC3, theta4) <- inferFwd h m
+  let CT (TApp m' a3) e3 = uC3
+  when (m' /= m) $ throwError "infer handler : different carrier"
+  case a3 of
+    TVar _ False -> return ()
+    _ -> throwError "infer handler : operation clauses are not polymorphic"
+  theta5 <- unify (theta4 <^> theta3 <@> a2 <!> e2) (a3 <!> e3)
+  put ctx
+
+  let theta = theta5 <^> theta4 <^> theta3 <^> theta2 <^> theta1
+  let a4 = theta5 <@> a3
+  when (S.member (getVarName a4, ValueType) (freeVars $ theta5 <^> theta4 <@> nctx)) $
+    throwError "infer handler : handler is not polymorphic"
+
+  when (freeVars m `S.intersection` freeVars (theta <@> ctx) /= S.empty) $ do
+    throwError "infer handler : free variables in M will escape"
+
+  let f = appendEff (oplist h ++ sclist h) (theta5 <@> e3)
+  return (THand (a4 <!> f) (theta5 <@> TApp m a4 <!> e3), theta)
 
 inferV oth = error $ "inferV undefined for " ++ show oth
 
+inferRet :: Handler -> TypeOpt -> W (CType, Theta)
+inferRet h m = do
+  let (x, cr) = hreturn h
+  alpha <- freshV
+  mu <- freshE
+  ctx <- get
+  put (addBinding ctx (x, TypeBind $ Mono alpha))
+  (uC, theta1) <- inferC cr
+  theta2 <- unify uC (theta1 <@> TApp m alpha <!> mu)
+  put ctx
+  return (theta2 <^> theta1 <@> TApp m alpha <!> mu, theta2 <^> theta1)
+
 -- | operation clauses
-inferOpr :: Handler -> W (CType, Theta)
-inferOpr h = do
-  let m = carrier h
-  (uC1, theta1) <- inferOp ops
+inferOpr :: Handler -> TypeOpt -> W (CType, Theta)
+inferOpr h m = do
+  (uC1, theta1) <- inferOp m ops -- also need the carrier
   ctx <- get
   put (theta1 <@> ctx)
   (uC2, theta2) <- inferSc m scs -- need the carrier
@@ -245,81 +316,96 @@ inferOpr h = do
       Just t -> (l, t)
       Nothing -> error "impossible"
 
--- (l, (x, k, c))
-inferOp :: [(Name, (Name, Name, Comp))] -> W (CType, Theta)
-inferOp [] = do
+inferEmp :: TypeOpt -> W (CType, Theta)
+inferEmp m = do
   alpha <- freshV
   mu <- freshE
-  return (CT alpha mu, M.empty)
-inferOp ((l, (x, k, c)) : ops) = do
-  (_, (al, bl)) <- name2entry sigma l
-  alpha <- freshV
-  mu <- freshE
-  (uD, theta1) <- inferOp ops
-  ctx <- get
-  let nctx = addBindings (theta1 <@> ctx) [ (x, TypeBind $ Mono al)
-                                          , (k, TypeBind . Mono $ TArr bl (CT alpha mu))]
-  put nctx
-  (uC, theta2) <- inferC c
-  put ctx
-  theta3 <- unifyList [(theta2 <@> CT alpha mu, uC), (theta2 <@> CT alpha mu, theta2 <@> uD)]
-  return (theta3 <@> theta2 <@> CT alpha mu, theta3 <^> theta2 <^> theta1)
+  return (TApp m alpha <!> mu, M.empty)
 
--- (l, (x, p, k, c))
-inferSc :: TypeOpt -> [(Name, (Name, Name, Name, Comp))] -> W (CType, Theta)
-inferSc _ [] = do
-  alpha <- freshV
-  mu <- freshE
-  return (CT alpha mu, M.empty)
-inferSc m ((l, (x, p, k, c)) : scs) = do
+-- (l, (x, k, c))
+inferOp :: TypeOpt -> [(Name, (Name, Name, Comp))] -> W (CType, Theta)
+inferOp m [] = inferEmp m
+inferOp m ((l, (x, k, c)) : ops) = do
   (_, (al, bl)) <- name2entry sigma l
-  alpha <- freshV
-  beta <- freshV
-  mu <- freshE
-  (uD, theta1) <- inferSc m scs
+  (uD, theta1) <- inferOp m ops
+  let CT (TApp m' a) e = uD -- if not, an error will be throwed
+  m <- return $ theta1 <@> m
+  when (m' /= m) $ throwError "inferOp : different carrier"
   ctx <- get
   let nctx = addBindings (theta1 <@> ctx)
         [ (x, TypeBind $ Mono al)
-        , (p, TypeBind . Mono $ TArr bl (CT (applyTyOpt m beta) mu))
-        , (k, TypeBind . Mono $ TArr beta (CT alpha mu)) ]
+        , (k, TypeBind . Mono $ TArr bl uD)]
   put nctx
   (uC, theta2) <- inferC c
   put ctx
-  theta3 <- unifyList [(theta2 <@> CT alpha mu, uC), (theta2 <@> CT alpha mu, theta2 <@> uD)]
-  return (theta3 <@> theta2 <@> CT alpha mu, theta3 <^> theta2 <^> theta1)
+  theta3 <- unify uC (theta2 <@> uD)
+  return (theta3 <^> theta2 <@> uD, theta3 <^> theta2 <^> theta1)
+
+-- (l, (x, p, k, c))
+inferSc :: TypeOpt -> [(Name, (Name, Name, Name, Comp))] -> W (CType, Theta)
+inferSc m [] = inferEmp m
+inferSc m ((l, (x, p, k, c)) : scs) = do
+  (_, (al, bl)) <- name2entry sigma l
+  beta <- freshTV -- fresh value type variable
+  (uD, theta1) <- inferSc m scs
+  let CT (TApp m' a) e = uD
+  m <- return $ theta1 <@> m
+  when (m' /= m) $ throwError "inferSc : different carrier"
+  ctx <- get
+  let nctx = addBindings (theta1 <@> ctx)
+        [ (x, TypeBind $ Mono al)
+        -- , (p, TypeBind . Mono $ TArr bl (CT (applyTyOpt m beta) mu))
+        , (p, TypeBind . Mono $ TArr bl (TApp m beta <!> e))
+        , (k, TypeBind . Mono $ TArr beta uD) ]
+  put nctx
+  (uC, theta2) <- inferC c
+  put ctx
+  theta3 <- unify uC (theta2 <@> uD)
+  -- beta notin dom(theta2 <^> theta1)
+  when (M.member (getVarName beta) (theta3 <^> theta2 <^> theta1)) $
+    throwError "inferSc: beta is substituted"
+  -- when (M.member (getVarName beta) (theta3 <^> theta2 <^> theta1)) $ do
+  --     -- 因为没有区分type variable和unification variable，所以先允许被替换成其他variable
+  --     let t = M.lookup (getVarName beta) (theta3 <^> theta2 <^> theta1)
+  --     case t of
+  --       Nothing -> return ()
+  --       Just (Left (TVar _ _)) -> return()
+  --       Just _ -> throwError "inferSc: beta is substituted"
+  return (theta3 <^> theta2 <@> uD, theta3 <^> theta2 <^> theta1)
 
 
-inferFwd :: Handler -> W (CType, Theta)
-inferFwd h = do
-  let m = carrier h
+inferFwd :: Handler -> TypeOpt -> W (CType, Theta)
+inferFwd h m = do
   let (f, p, k, cf) = hfwd h
-  alpha <- freshV
-  beta <- freshV
-  gamma <- freshV
-  gamma' <- freshV
+  alpha <- freshTV
+  beta <- freshTV
+  gamma <- freshTV
+  delta <- freshTV
   mu <- freshE
   alpha' <- freshV
-  -- traceM $ "look: " ++ getVarName alpha ++ " " ++ getVarName alpha'
-  let ap  = alpha <->> applyTyOpt m beta <!> mu
+  -- let ap  = alpha <->> applyTyOpt m beta <!> mu
+  -- let ak  = beta <->> applyTyOpt m alpha' <!> mu
+  let ap  = alpha <->> TApp m beta <!> mu
+  let ak  = beta <->> TApp m alpha' <!> mu
   let ap' = alpha <->> gamma <!> mu
-  let ak  = beta <->> applyTyOpt m alpha' <!> mu
-  -- let ak' = gamma <->> applyTyOpt m alpha' mu <!> mu
-  let ak' = gamma <->> gamma' <!> mu
+  let ak' = gamma <->> delta <!> mu
   ctx <- get
   let nctx = addBindings ctx
-        [ (f, TypeBind . Forall (getVarName gamma) ValueType . Forall (getVarName gamma') ValueType . Mono
-                $ TPair ap' ak' <->> gamma' <!> mu)
+        [ (f, TypeBind . Forall (getVarName gamma) ValueType . Forall (getVarName delta) ValueType . Mono
+                $ TPair ap' ak' <->> delta <!> mu)
         , (p, TypeBind $ Mono ap)
         , (k, TypeBind $ Mono ak) ] -- NOTE: the order f, p, k cannot be changed!
   put nctx
-  -- traceM "hi!!!!!!!!!"
   (uC, theta1) <- inferC cf
-  -- traceM "end!!!!!!!!!"
   put ctx
-  -- traceM $ "### " ++ show uC ++ "\n### " ++ show (theta1 <@> applyTyOpt m alpha' mu <!> mu)
-  -- traceM $ "m: " ++ show m
-  theta2 <- unify uC (theta1 <@> applyTyOpt m alpha' <!> mu)
-  return (theta2 <@> uC, theta2 <^> theta1)
+  theta2 <- unify uC (theta1 <@> TApp m alpha' <!> mu)
+  when (  M.member (getVarName alpha) (theta2 <^> theta1) 
+       || M.member (getVarName beta) (theta2 <^> theta1)
+       || M.member (getVarName gamma) (theta2 <^> theta1)
+       || M.member (getVarName delta) (theta2 <^> theta1)
+       ) $
+    throwError "inferFwd: type variables are substituted"
+  return (theta2 <^> theta1 <@> TApp m alpha' <!> mu, theta2 <^> theta1)
 
 inferC :: Comp -> W (CType, Theta)
 inferC (App v1 v2) = do
@@ -404,7 +490,7 @@ inferC (Absurd v) = do
 inferC (Op l v (y :. c)) = do
   (_, (al, bl)) <- name2entry sigma l
   (a, theta1) <- inferV v
-  theta2 <- unify (theta1 <@> al) a
+  theta2 <- unify al a
   ctx <- get
   let nctx = addBinding (theta2 <@> theta1 <@> ctx) (y, TypeBind (Mono bl))
   put nctx
@@ -417,7 +503,7 @@ inferC (Op l v (y :. c)) = do
 inferC (Sc l v (y :. c1) (z :. c2)) = do
   (_, (al, bl)) <- name2entry sigma l
   (a, theta1) <- inferV v
-  theta2 <- unify (theta1 <@> al) a
+  theta2 <- unify al a
   ctx <- get
   let nctx = addBinding (theta2 <@> theta1 <@> ctx) (y, TypeBind (Mono bl))
   put nctx

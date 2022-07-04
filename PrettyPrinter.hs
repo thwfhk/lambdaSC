@@ -70,7 +70,7 @@ class MyTypePrinter a where
 
 instance MyTypePrinter VType where
   printy vt = case vt of
-    TVar x -> do
+    TVar x _ -> do
       (m, alphabet) <- get
       case M.lookup x m of
         Just y -> return y
@@ -110,10 +110,11 @@ instance MyTypePrinter VType where
     TBool -> return "Bool"
     TInt -> return "Int"
     TEmpty -> return "Empty"
+    TApp m t -> printy (applyTyOpt m t)
 
 instance MyTypePrinter EType where
   printy et = case et of
-    EVar x -> do
+    EVar x _ -> do
       (m, alphabet) <- get
       case M.lookup x m of
         Just y -> return y
@@ -124,14 +125,14 @@ instance MyTypePrinter EType where
     ECons l t -> do
       let (ls, t') = getAllLabels (ECons l t)
       case t' of
-        (EVar x) -> do s <- printy t'; return $ "<" ++ printLabels ls ++ " | " ++ s ++ ">"
+        (EVar x _) -> do s <- printy t'; return $ "<" ++ printLabels ls ++ " | " ++ s ++ ">"
         EEmpty -> return $ "<" ++ printLabels ls ++ ">"
         _ -> error "impossible"
       -- s <- printy t
       -- return $ "<" ++ l ++ ";" ++ s ++ ">"
 
 getAllLabels :: EType -> ([Name], EType)
-getAllLabels (EVar x) = ([], EVar x)
+getAllLabels (EVar x b) = ([], EVar x b)
 getAllLabels EEmpty = ([], EEmpty)
 getAllLabels (ECons l t) = let (res, et) = getAllLabels t
                            in (l : res, et)
@@ -146,6 +147,10 @@ instance MyTypePrinter CType where
     s <- case vt of
           TArr _ _ -> do s <- printy vt; return $ addParens s
           TSum _ _ -> do s <- printy vt; return $ addParens s
+          TApp m t -> case applyTyOpt m t of
+                        TArr _ _ -> do s <- printy vt; return $ addParens s
+                        TSum _ _ -> do s <- printy vt; return $ addParens s
+                        _ -> printy vt
           _ -> printy vt
     es <- printy et
     return $ s ++ " ! " ++ es

@@ -1,4 +1,4 @@
-{-# LANGUAGE FlexibleContexts #-}
+{-# LANGUAGE FlexibleContexts, FlexibleInstances #-}
 
 module Context where
 
@@ -8,6 +8,7 @@ import Text.Parsec (SourcePos)
 import Data.Functor.Identity (Identity)
 import Control.Monad.State
 import Control.Monad.Except
+import qualified Data.Set as S
 
 
 data Binding
@@ -75,3 +76,9 @@ index2type ctx x
                           TypeBind t -> return t
   | otherwise = throwError $ "index " ++ show x
               ++ " overflow (context length " ++ show (length ctx) ++ ")"
+
+
+instance FreeVars Context where
+  freeVars [] = S.empty
+  freeVars ((x, NameBind) : xs) = freeVars xs
+  freeVars ((x, TypeBind t) : xs) = freeVars t `S.union` freeVars xs

@@ -14,8 +14,8 @@ class Applicable a where
   apply :: Theta -> a -> a
 
 instance Applicable VType where
-  apply s (TVar x) = case M.lookup x s of
-    Nothing -> TVar x
+  apply s (TVar x b) = case M.lookup x s of
+    Nothing -> TVar x b
     Just (Left t) -> apply s t
     _ -> error "expect a value type variable"
   apply s (TArr t1 t2) = TArr (apply s t1) (apply s t2)
@@ -30,13 +30,14 @@ instance Applicable VType where
   apply s TBool = TBool
   apply s TInt = TInt
   apply s TEmpty = TEmpty
+  apply s (TApp m a) = TApp (apply s m) (apply s a)
 
 instance Applicable CType where
   apply s (CT v e) = CT (apply s v) (apply s e)
 
 instance Applicable EType where
-  apply s (EVar x) = case M.lookup x s of
-    Nothing -> EVar x
+  apply s (EVar x b) = case M.lookup x s of
+    Nothing -> EVar x b
     Just (Right t) -> apply s t
     _ -> error "expect an effect type variable"
   apply s EEmpty = EEmpty
@@ -51,6 +52,10 @@ instance Applicable SType where
 instance Applicable Type where
   apply s (Left t) = Left $ apply s t
   apply s (Right t) = Right $ apply s t
+
+instance Applicable TypeOpt where
+  apply s (TNil t) = TNil (apply s t)
+  apply s (TAbs x k t) = TAbs x k (apply (M.delete x s) t)
 
 infixr 7 <@> 
 (<@>) :: Applicable a => Theta -> a -> a
