@@ -66,7 +66,7 @@ runFile :: IO ()
 runFile = do
   args <- getArgs
   case args of
-    [sourceFileName, dstFileName] -> do
+    [sourceFileName] -> do
       sourceFile <- readFile sourceFileName
       case runExcept (runParseCmds sourceFileName sourceFile) of
         Left err -> putStrLn $ "[PARSE FAILED 😵]: " ++ show err
