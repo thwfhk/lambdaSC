@@ -1,4 +1,4 @@
-DEF hOnce = handler [\ x : * . List x]
+DEF hOnce = handler [\ x . List x]
   { return x      |-> return [x]
   , op fail _ _   |-> return []
   , op choose _ k |-> do xs <- k true; do ys <- k false ; xs ++ ys
@@ -11,7 +11,7 @@ DEF exceptMap = \ z . return (
   \ k . case z of left e  -> return (left e)
                   right x -> k x
 )
-DEF hExcept = handler [\ x : * . Sum String x]
+DEF hExcept = handler [\ x . Sum String x]
   { return x       |-> return (right x)
   , op raise e k   |-> return (left e)
   , sc catch e p k |->
@@ -22,7 +22,7 @@ DEF hExcept = handler [\ x : * . Sum String x]
   , fwd f p k |-> f (p, \ z . exceptMap z k)
   }
 
-DEF hCut = handler [\ x : * . CutList x]
+DEF hCut = handler [\ x . CutList x]
   {  return x      |->  return (opened [x])
   ,  op fail _ _   |->  return (opened [])
   ,  op choose _ k |->  do xs <- k true; do ys <- k false; append xs ys
