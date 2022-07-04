@@ -55,7 +55,7 @@ inst (Forall x k t) = case k of
     i <- freshE
     t' <- inst t
     return (apply (M.singleton x (Right i)) t')
-  CompType -> throwError "computation type should not be bound"
+  CompType -> throwError "computation type is not allowed to be quantified"
 
 gen :: Theta -> VType -> W SType
 gen theta t = do
@@ -239,15 +239,13 @@ inferV (Vsum (Right v)) = do
 
 inferV (Vhandler h) = do
   let m = carrier h
-  -- kind check m 
 
   -- return clause
   (uC1, theta1) <- inferRet h m
   let CT (TApp m' a1) e1 = uC1
-  m <- return $ theta1 <@> m
   when (m' /= m) $ throwError "infer handler : different carrier"
   case a1 of
-    TVar _ _ -> return ()
+    TVar _ False -> return ()
     _ -> throwError "infer handler : the return clause is not polymorphic"
   ctx <- get
 
@@ -255,10 +253,9 @@ inferV (Vhandler h) = do
   put (theta1 <@> ctx)
   (uC2, theta2) <- inferOpr h m
   let CT (TApp m' a2) e2 = uC2
-  m <- return $ theta2 <@> m 
   when (m' /= m) $ throwError "infer handler : different carrier"
   case a2 of
-    TVar _ _ -> return ()
+    TVar _ False -> return ()
     _ -> throwError "infer handler : operation clauses are not polymorphic"
   theta3 <- unify (theta2 <@> a1 <!> e1) (a2 <!> e2)
 
@@ -267,12 +264,9 @@ inferV (Vhandler h) = do
   put nctx
   (uC3, theta4) <- inferFwd h m
   let CT (TApp m' a3) e3 = uC3
-  m <- return $ theta4 <^> theta3 <@> m 
-  -- traceM $ "what???\n" ++ show m ++ "\n" ++ show m'
-  when (m' /= m) $ do
-    throwError "infer handler : different carrier"
+  when (m' /= m) $ throwError "infer handler : different carrier"
   case a3 of
-    TVar _ _ -> return ()
+    TVar _ False -> return ()
     _ -> throwError "infer handler : operation clauses are not polymorphic"
   theta5 <- unify (theta4 <^> theta3 <@> a2 <!> e2) (a3 <!> e3)
   put ctx
@@ -282,12 +276,11 @@ inferV (Vhandler h) = do
   when (S.member (getVarName a4, ValueType) (freeVars $ theta5 <^> theta4 <@> nctx)) $
     throwError "infer handler : handler is not polymorphic"
 
-  let hm = carrier h -- the original m
-  when (freeVars hm `S.intersection` freeVars (theta <@> ctx) /= S.empty) $ do
+  when (freeVars m `S.intersection` freeVars (theta <@> ctx) /= S.empty) $ do
     throwError "infer handler : free variables in M will escape"
 
   let f = appendEff (oplist h ++ sclist h) (theta5 <@> e3)
-  return ( THand (a4 <!> f) (theta5 <@> TApp m a4 <!> e3), theta)
+  return (THand (a4 <!> f) (theta5 <@> TApp m a4 <!> e3), theta)
 
 inferV oth = error $ "inferV undefined for " ++ show oth
 

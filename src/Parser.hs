@@ -388,23 +388,15 @@ parseFwdClause = do
 -- * Type Parser
 
 parseTypeOpt :: Parser TypeOpt
--- parseTypeOpt = do
---   reservedOp "\\"
---   x <- identifier
---   dot
---   reserved "List"
---   _ <- identifier
---   return (TAbs x (TList (TVar x)))
-  -- TODO: temporarily fix the shape to \ x . List x
 parseTypeOpt =
   (do
     reservedOp "\\"
     x <- identifier
-    reservedOp ":"
-    k <- parseKind
+    -- reservedOp ":"
+    -- k <- parseKind
     dot
     t <- parseTypeOpt
-    return $ TAbs x k t)
+    return $ TAbs x ValueType t) -- remove the kind notation, only bind value types
   <|>
   (do
     t <- parseVType

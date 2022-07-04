@@ -1,4 +1,4 @@
-DEF hInc = handler [\ x : * . Arr Int ((x, Int) ! mu)]
+DEF hInc = handler [\ x . Arr Int ((x, Int) ! mu)]
   { return x   |-> return (\ s . return (x, s))
   , op inc _ k |-> return (\ s . do s1 <- (s + 1); k s s1)
   , fwd f p k  |-> return (\ s . f (
@@ -8,7 +8,7 @@ DEF hInc = handler [\ x : * . Arr Int ((x, Int) ! mu)]
   }
 
 
-DEF hOnce = handler [\ x : * . List x]
+DEF hOnce = handler [\ x . List x]
   { return x      |-> return [x]
   , op fail _ _   |-> return []
   , op choose _ k |-> do xs <- k true; do ys <- k false ; xs ++ ys
@@ -21,7 +21,7 @@ DEF exceptMap = \ z . return (
   \ k . case z of left e  -> return (left e)
                   right x -> k x
 )
-DEF hExcept = handler [\ x : * . Sum String x]
+DEF hExcept = handler [\ x . Sum String x]
   { return x       |-> return (right x)
   , op raise e k   |-> return (left e)
   , sc catch e p k |->
@@ -32,7 +32,7 @@ DEF hExcept = handler [\ x : * . Sum String x]
   , fwd f p k |-> f (p, \ z . exceptMap z k)
   }
 
-DEF hState = handler [\ x : * . Arr (Mem String Int) ((x, Mem String Int) ! mu)]
+DEF hState = handler [\ x . Arr (Mem String Int) ((x, Mem String Int) ! mu)]
   { return x        |-> return (\ m . return (x, m))
   , op get x k      |-> return (\ m . do v <- retrieve x m; k v m)
   , op put pa k     |-> return (\ m . do m' <- update pa m; k unit m')
@@ -49,7 +49,7 @@ DEF hState = handler [\ x : * . Arr (Mem String Int) ((x, Mem String Int) ! mu)]
     ))
   }
 
-DEF hCut = handler [\ x : * . CutList x]
+DEF hCut = handler [\ x . CutList x]
   {  return x      |->  return (opened [x])
   ,  op fail _ _   |->  return (opened [])
   ,  op choose _ k |->  do xs <- k true; do ys <- k false; append xs ys
@@ -58,7 +58,7 @@ DEF hCut = handler [\ x : * . CutList x]
   , fwd f p k |-> f (p, \ z . concatMapCutList z k)
   }
 
-DEF hDepth = handler [\ x : * . Arr Int (List (x, Int) ! mu)]
+DEF hDepth = handler [\ x . Arr Int (List (x, Int) ! mu)]
   {  return x        |->  return (\ d . return [(x, d)])
   ,  op fail _ _     |->  return (\ _ . return [])
   ,  op choose _ k   |->  return (\ d . do b <- d == 0;
