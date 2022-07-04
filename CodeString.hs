@@ -1,18 +1,36 @@
 module CodeString where
 
 nd = "\
-  \DEF hND = handler [\\ x : * . List x] \n\
+  \-- define a handler for non-determinism using the keyword DEF \n\
+  \-- write the type annotation of handlers in the brackets \n\
+  \ \n\
+  \DEF hND = handler [\\ x . List x] \n\
+  \  { return x      |-> return [x] \n\
+  \  , op fail _ _   |-> return [] \n\
+  \  , op choose _ k |-> do xs <- k true; do ys <- k false ; xs ++ ys \n\
+  \  , fwd f p k     |-> f (p, \\ z . concatMap z k) \n\
+  \  } \n\
+  \ \n\
+  \ \n\
+  \-- apply the handler to a computation using the keyword RUN \n\
+  \ \n\
+  \RUN hND # op choose unit (b . if b then return \"heads\" else return \"tails\") \n\
+  \ \n\
+  \ \n\
+  \-- or directly write the definition of the handler in the computation \n\
+  \-- instead of defining first \n\
+  \ \n\
+  \RUN handler [\\ x . List x] \n\
   \  { return x      |-> return [x] \n\
   \  , op fail _ _   |-> return [] \n\
   \  , op choose _ k |-> do xs <- k true; do ys <- k false ; xs ++ ys \n\
   \  , fwd f p k |-> f (p, \\ z . concatMap z k) \n\
-  \  } \n\
+  \  } # op choose unit (b . if b then return \"heads\" else return \"tails\") \n\
   \ \n\
-  \RUN hND # op choose unit (b . if b then return \"heads\" else return \"tails\") \n\
   \"
 
 local = "\
-  \DEF hState = handler [\\ x : * . Arr (Mem String Int) ((a, Mem String Int) ! mu)] \n\
+  \DEF hState = handler [\\ x . Arr (Mem String Int) ((x, Mem String Int) ! mu)] \n\
   \  { return x        |-> return (\\ m . return (x, m)) \n\
   \  , op get x k      |-> return (\\ m . do v <- retrieve x m; k v m) \n\
   \  , op put pa k     |-> return (\\ m . do m' <- update pa m; k unit m') \n\
@@ -44,7 +62,7 @@ local = "\
   \"
 
 cut = "\
-  \DEF hCut = handler [\\ x : * . CutList x] \n\
+  \DEF hCut = handler [\\ x . CutList x] \n\
   \  {  return x      |->  return (opened [x]) \n\
   \  ,  op fail _ _   |->  return (opened []) \n\
   \  ,  op choose _ k |->  do xs <- k true; do ys <- k false; append xs ys \n\
@@ -65,8 +83,22 @@ cut = "\
   \ \n\
   \"
 
+start = "\
+  \-- define a handler for non-determinism using the keyword DEF \n\
+  \DEF hND = handler [\\ x . List x] \n\
+  \  { return x      |-> return [x] \n\
+  \  , op fail _ _   |-> return [] \n\
+  \  , op choose _ k |-> do xs <- k true; do ys <- k false ; xs ++ ys \n\
+  \  , fwd f p k |-> f (p, \\ z . concatMap z k) \n\
+  \  } \n\
+  \ \n\
+  \-- apply the handler to a computation using the keyword RUN \n\
+  \RUN hND # op choose unit (b . if b then return \"heads\" else return \"tails\") \n\
+  \ \n\
+  \"
+
 once = "\
-  \DEF hInc = handler [\\ x : * . Arr Int ((x, Int) ! mu)] \n\
+  \DEF hInc = handler [\\ x . Arr Int ((x, Int) ! mu)] \n\
   \  { return x   |-> return (\\ s . return (x, s)) \n\
   \  , op inc _ k |-> return (\\ s . do s1 <- (s + 1); k s s1) \n\
   \  , fwd f p k  |-> return (\\ s . f ( \n\
@@ -75,7 +107,7 @@ once = "\
   \    )) \n\
   \  } \n\
   \ \n\
-  \DEF hOnce = handler [\\ x : * . List x] \n\
+  \DEF hOnce = handler [\\ x . List x] \n\
   \  { return x      |-> return [x] \n\
   \  , op fail _ _   |-> return [] \n\
   \  , op choose _ k |-> do xs <- k true; do ys <- k false ; xs ++ ys \n\
@@ -106,7 +138,7 @@ once = "\
   \"
 
 depth = "\
-  \DEF hDepth = handler [\\ x : * . Arr Int (List (x, Int) ! mu)] \n\
+  \DEF hDepth = handler [\\ x . Arr Int (List (x, Int) ! mu)] \n\
   \  {  return x        |->  return (\\ d . return [(x, d)]) \n\
   \  ,  op fail _ _     |->  return (\\ _ . return []) \n\
   \  ,  op choose _ k   |->  return (\\ d . do b <- d == 0; \n\
@@ -143,7 +175,7 @@ catch = "\
   \                  right x -> k x \n\
   \) \n\
   \ \n\
-  \DEF hExcept = handler [\\ x : * . Sum String x] \n\
+  \DEF hExcept = handler [\\ x . Sum String x] \n\
   \  { return x       |-> return (right x) \n\
   \  , op raise e k   |-> return (left e) \n\
   \  , sc catch e p k |-> \n\
@@ -154,7 +186,7 @@ catch = "\
   \  , fwd f p k |-> f (p, \\ z . exceptMap z k) \n\
   \  } \n\
   \ \n\
-  \DEF hInc = handler [\\ x : * . Arr Int ((x, Int) ! mu)] \n\
+  \DEF hInc = handler [\\ x . Arr Int ((x, Int) ! mu)] \n\
   \  { return x   |-> return (\\ s . return (x, s)) \n\
   \  , op inc _ k |-> return (\\ s . do s1 <- (s + 1); k s s1) \n\
   \  , fwd f p k  |-> return (\\ s . f ( \n\

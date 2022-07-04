@@ -62,9 +62,17 @@ interpret input =
                               in let res = concatMap (\(n, t) -> "  " ++
                                            (if n /= "" then n ++ " : " else "") ++
                                            evalState (printy t) (M.empty, alphabets) ++"\n") $ zip names ts;
-                              in "[TYPE INFERENCE SUCCESS 🥳]:\n" ++ res
+                              in "[TYPE INFERENCE SUCCESS 🥳]:\n" ++ string2html res
         in let cs = cmds2comps cmds
           --  putStrLn (show cs)
-        in let info2 = "[EVALUATION RESULTS]:"
+        in let info2 = "[EVALUATION RESULTS 🥳]:"
         in let results = concatMap (\ c -> " " ++ dropWhile (/= ' ') (printt (eval c)) ++ "\n") cs
         in info ++ "\n" ++ tres ++ "\n" ++ info2 ++ "\n" ++ results
+
+
+string2html :: String -> String
+string2html s = concatMap f s
+  where
+    f '<' = "&lt;"
+    f '>' = "&gt;"
+    f x   = x : []

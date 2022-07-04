@@ -16,10 +16,10 @@ def string2haskell(name, s):
 
 output = "module CodeString where\n\n"
 
-for fileName in os.listdir("./exampleCodes"):
+for fileName in os.listdir("./test"):
   if fileName == "examples.sc":
     continue
-  f = open("./exampleCodes/" + fileName, "r")
+  f = open("./test/" + fileName, "r")
   s = f.read()
   output = output + string2haskell(fileName[:-3], s) + "\n\n"
 
