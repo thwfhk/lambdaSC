@@ -14,7 +14,7 @@ type Name = String
 
 -- | Command syntax
 data Command
-  = Def Name Value
+  = Def Name Value Bool -- ^ True : recursive
   | Run Comp
   deriving (Show, Eq)
 
@@ -99,7 +99,7 @@ data Comp
   | TailS Value
   | ConsS Value Value
   | Read Value
-  | ConcatMap Value Value
+  -- | ConcatMap Value Value
   | AppendCut Value Value
   | ConcatMapCutList Value Value
   | Close Value | Open Value
@@ -308,8 +308,9 @@ builtInFunc1 =
 -- (name, constructor, is infix)
 builtInFunc2 :: [(String, Value -> Value -> Comp, Bool)]
 builtInFunc2 =
-  [ ("concatMap", ConcatMap, False)
-  , ("concatMapCutList", ConcatMapCutList, False)
+  [ 
+    --("concatMap", ConcatMap, False)
+   ("concatMapCutList", ConcatMapCutList, False)
   , ("update", Update, False)
   , ("retrieve", Retrieve, False)
   , ("append", AppendCut, False)
@@ -331,9 +332,10 @@ builtInFuncType s = case s of
   "fst" -> fa s . fb s . fmu s . Mono $ TPair (a s) (b s) <->> a s <!> mu s
   "snd" -> fa s . fb s . fmu s . Mono $ TPair (a s) (b s) <->> b s <!> mu s
   "head" -> fa s . fmu s . Mono $ TList (a s) <->> a s <!> mu s
+  "tail" -> fa s . fmu s . Mono $ TList (a s) <->> TList (a s) <!> mu s
   "append" -> fa s . fmu s . Mono $ TPair (TList (a s)) (TList (a s)) <->> TList (a s) <!> mu s
-  "concatMap" -> fa s . fb s . fmu s . Mono $
-    TPair (TList (b s)) (b s <->> TList (a s) <!> mu s) <->> TList (a s) <!> mu s
+  -- "concatMap" -> fa s . fb s . fmu s . Mono $
+    -- TPair (TList (b s)) (b s <->> TList (a s) <!> mu s) <->> TList (a s) <!> mu s
   "newmem" -> fa s . fb s . fmu s . Mono $ TUnit <->> TMem (a s) (b s) <!> mu s
   "retrieve" -> fa s . fb s . fmu s . Mono $ TPair (a s) (TMem (a s) (b s)) <->> b s <!> mu s
   "update" -> fa s . fb s . fmu s . Mono $
@@ -363,9 +365,11 @@ cmds2comps :: [Command] -> [Comp]
 cmds2comps cmds =
     let defs = filter isDef cmds
     in let runs = filter isRun cmds
-    in map (\ (Run main) -> foldr (\(Def x v) c -> Let x v c) main defs) runs
+    in map (\ (Run main) -> foldr f main defs) runs
   where
-    isDef (Def _ _) = True
+    f (Def x v b) c = if b then LetRec x v c else Let x v c
+    f (Run _) _ = error "impossible"
+    isDef Def {} = True
     isDef _ = False
     isRun (Run _) = True
     isRun _ = False

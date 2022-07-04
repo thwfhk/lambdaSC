@@ -53,7 +53,7 @@ instance MyPrinter Comp where
     Lt v1 v2 -> printt v1 ++ " > " ++ printt v2
     Add v1 v2 -> printt v1 ++ " + " ++ printt v2
     Append v1 v2 -> printt v1 ++ " ++ " ++ printt v2
-    ConcatMap v1 v2 -> "concatMap " ++ printt v1 ++ " " ++ printt v2
+    -- ConcatMap v1 v2 -> "concatMap " ++ printt v1 ++ " " ++ printt v2
     Retrieve v1 v2 -> "retrieve " ++ printt v1 ++ " " ++ printt v2
     Update v1 v2 -> "update " ++ printt v1 ++ " " ++ printt v2
     Head v -> "head " ++ printt v

@@ -7,6 +7,16 @@ DEF hInc = handler [\ x . Arr Int ((x, Int) ! mu)]
     ))
   }
 
+REC concatMap = \ bs . return (
+  \ f . do e <- bs == [];
+           if e then return []
+           else do b <- head bs;
+                do bs' <- tail bs;
+                do as <- f b;
+                do as' <- concatMap bs' f;
+                as ++ as'
+  )
+
 DEF hOnce = handler [\ x . List x]
   { return x      |-> return [x]
   , op fail _ _   |-> return []
@@ -16,6 +26,8 @@ DEF hOnce = handler [\ x . List x]
   }
 
 ----------------------------------------------------------------
+
+RUN do f <- hInc # (op inc unit); f 0
 
 RUN hOnce # (do f <- hInc # (
   op choose unit (b . if b then op inc unit else op inc unit)

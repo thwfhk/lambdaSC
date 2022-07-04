@@ -65,11 +65,12 @@ langDef = emptyDef
             , "do"
             , "handler"
             , "DEF"
+            , "REC"
             , "RUN"
             ---------------
             , "head"
             , "tail"
-            , "concatMap"
+            -- , "concatMap"
             , "concatMapCutList"
             , "append"
             , "open"

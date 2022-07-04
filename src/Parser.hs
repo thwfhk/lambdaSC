@@ -33,7 +33,7 @@ sourcePos = statePos `liftM` getParserState
 parseCmds :: Parser [Command]
 parseCmds = do
     ctx <- getState
-    cmds <- whiteSpace >> many (parseDef <|> parseRun)
+    cmds <- whiteSpace >> many (parseDef <|> parseRec <|> parseRun)
     setState ctx
     return cmds
 
@@ -45,13 +45,24 @@ parseDef = do
   v <- parseValue
   ctx <- getState
   setState $ addBinding ctx (x, NameBind)
-  return $ Def x v
+  return $ Def x v False
+
+parseRec :: Parser Command
+parseRec = do
+  reserved "REC"
+  x <- identifier
+  ctx <- getState
+  setState $ addBinding ctx (x, NameBind)
+  reservedOp "="
+  v <- parseValue
+  return $ Def x v True
 
 parseRun :: Parser Command
 parseRun = do
   reserved "RUN"
   c <- parseComp
   return $ Run c
+
 ----------------------------------------------------------------
 -- * Value Parser
 

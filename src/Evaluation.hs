@@ -65,11 +65,11 @@ eval1 (Snd (Vpair (x, y))) = return . Return $ y
 eval1 (Append (Vlist xs) (Vlist ys)) = return . Return . Vlist $ xs ++ ys
 eval1 (Head (Vlist xs)) = return . Return . head $ xs
 eval1 (Tail (Vlist xs)) = return . Return . Vlist . tail $ xs
-eval1 (ConcatMap (Vlist xs) f) = return $ case xs of
-  [] -> Return . Vlist $ []
-  (x:xs) -> Do "as" (App f x) $
-            Do "as'" (ConcatMap (shiftV 1 $ Vlist xs) (shiftV 1 f)) $
-            Append (Var "as" 1) (Var "as'" 0)
+-- eval1 (ConcatMap (Vlist xs) f) = return $ case xs of
+--   [] -> Return . Vlist $ []
+--   (x:xs) -> Do "as" (App f x) $
+--             Do "as'" (ConcatMap (shiftV 1 $ Vlist xs) (shiftV 1 f)) $
+--             Append (Var "as" 1) (Var "as'" 0)
 
 eval1 (AppendS (Vstr xs) (Vstr ys)) = return . Return . Vstr $ xs ++ ys
 eval1 (HeadS (Vstr xs)) = return . Return . Vchar . head $ xs
@@ -142,7 +142,7 @@ mapC fc fv c = case c of
   ConsS v1 v2 -> ConsS (fv v1) (fv v2)
   Read v -> Read (fv v)
   AppendCut v1 v2 -> AppendCut (fv v1) (fv v2)
-  ConcatMap v1 v2 -> ConcatMap (fv v1) (fv v2)
+  -- ConcatMap v1 v2 -> ConcatMap (fv v1) (fv v2)
   Retrieve v1 v2 -> Retrieve (fv v1) (fv v2)
   Update v1 v2 -> Update (fv v1) (fv v2)
   ConcatMapCutList v1 v2 -> ConcatMapCutList (fv v1) (fv v2)
@@ -189,6 +189,7 @@ varmapC onvar cur c = case c of
     Handle v c -> Handle (fv cur v) (fc cur c)
     Do x c1 c2 -> Do x (fc cur c1) (fc (cur+1) c2)
     Let x v c  -> Let x (fv cur v) (fc (cur+1) c)
+    LetRec x v c  -> Let x (fv cur v) (fc (cur+1) c)
     Case v x c1 y c2 -> Case (fv cur v) x (fc (cur+1) c1) y (fc (cur+1) c2)
     oth -> mapC (fc cur) (fv cur) oth
   where
