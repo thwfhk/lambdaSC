@@ -33,7 +33,7 @@ sourcePos = statePos `liftM` getParserState
 parseCmds :: Parser [Command]
 parseCmds = do
     ctx <- getState
-    cmds <- many (parseDef <|> parseRun)
+    cmds <- whiteSpace >> many (parseDef <|> parseRun)
     setState ctx
     return cmds
 

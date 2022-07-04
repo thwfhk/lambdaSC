@@ -125,7 +125,7 @@ instance MyTypePrinter EType where
     ECons l t -> do
       let (ls, t') = getAllLabels (ECons l t)
       case t' of
-        (EVar x _) -> do s <- printy t'; return $ "<" ++ printLabels ls ++ " | " ++ s ++ ">"
+        (EVar x _) -> do s <- printy t'; return $ "<" ++ printLabels ls ++ "; " ++ s ++ ">"
         EEmpty -> return $ "<" ++ printLabels ls ++ ">"
         _ -> error "impossible"
       -- s <- printy t
