@@ -58,6 +58,7 @@ langDef = emptyDef
             , "else"
             , "return"
             , "let"
+            , "letrec"
             , "in"
             , "op"
             , "sc"

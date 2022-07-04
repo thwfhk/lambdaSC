@@ -4,7 +4,7 @@ cabal-version: 1.12
 --
 -- see: https://github.com/sol/hpack
 --
--- hash: 60ffe6201cd8a48cd768ef289ac67d66615a0b5db2f639ab78d34ec434f4a462
+-- hash: 54cd6077149a3a20e185fda2d2f16f8587dc395cc24715572670d309aa4b22b1
 
 name:           lambdaSC
 version:        0.1.0.0
@@ -29,7 +29,6 @@ library
   exposed-modules:
       Context
       Evaluation
-      Examples
       Lexer
       Parser
       PrettyPrinter

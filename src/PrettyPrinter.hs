@@ -29,7 +29,7 @@ instance MyPrinter Value where
     Vret v -> "opened " ++ printt v
     Vflag v -> "closed " ++ printt v
     Vmem v -> "mem " ++ show v
-  -- _ -> undefined 
+    _ -> "!!!! NOT SUPPORTED: " ++ show v
 
 -- ideally, we only need "return"
 instance MyPrinter Comp where

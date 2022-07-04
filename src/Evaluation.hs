@@ -18,6 +18,9 @@ eval1 :: Comp -> Maybe Comp
 eval1 (App (Lam x c) v) = return . shiftC (-1) $ subst c [(shiftV 1 v, 0)]
 
 eval1 (Let x v c) = return . shiftC (-1) $ subst c [(shiftV 1 v, 0)]
+-- eval1 (LetRec x v c) = return $ Let x (Fix (Lam x (Return v))) c
+-- eval1 (LetRec x v c) = return $ Let x (evalV (Fix (Lam x (Return v)))) c
+eval1 (LetRec x v c) = return $ Let x (Fix (Lam x (Return v))) c
 
 eval1 (Do x (Return v) c) = return . shiftC (-1) $ subst c [(shiftV 1 v, 0)]
 eval1 (Do x (Op l v (y :. c1)) c2) = return $ Op l v (y :. Do x c1 c2)
@@ -96,7 +99,16 @@ eval1 (Close (Vflag (Vlist xs))) = return . Return . Vflag . Vlist $ xs
 eval1 (Open  (Vret (Vlist xs)))  = return . Return . Vret  . Vlist $ xs
 eval1 (Open  (Vflag (Vlist xs))) = return . Return . Vret  . Vlist $ xs
 
-eval1 c = Nothing
+-- a little strange, but works
+eval1 c = let c' = mapC id evalV c in
+          if c' == c then Nothing else Just c'
+-- eval1 c = Nothing
+
+-- only used for the fixpoint construct
+evalV :: Value -> Value
+evalV (Fix (Lam x (Return v))) = shiftV (-1) $ substV v (Fix (Lam x (Return v)), 0)
+evalV v = v
+-- evalV _ = error "impossible"
 
 ----------------------------------------------------------------
 -- Auxiliary functions for implementing the evaluation:
@@ -110,6 +122,7 @@ mapC fc fv c = case c of
   Do x c1 c2 -> Do x (fc c1) (fc c2)
   App v1 v2 -> App (fv v1) (fv v2)
   Let x v c  -> Let x (fv v) (fc c)
+  LetRec x v c  -> LetRec x (fv v) (fc c)
   If v c1 c2 -> If (fv v) (fc c1) (fc c2)
   Case v x c1 y c2 -> Case (fv v) x (fc c1) y (fc c2)
   Eq v1 v2 -> Eq (fv v1) (fv v2)
@@ -166,6 +179,7 @@ mapV fc fv v = case v of
   Vstr s -> Vstr s
   Vchar c -> Vchar c
   Vhandler h -> Vhandler (mapH fc h)
+  Fix v -> Fix (fv v)
   -- oth -> oth
 
 varmapC :: (Int -> (Name, Int) -> Value) -> Int -> Comp -> Comp
@@ -210,10 +224,12 @@ shiftC delta v = varmapC (\ cur (x, i) -> if i >= cur then Var x (i+delta) else 
 substC :: Comp -> (Value, Int) -> Comp
 substC c (v, j) = varmapC (\ cur (x, i) -> if i == j+cur then shiftV cur v else Var x i) 0 c
 
+substV :: Value -> (Value, Int) -> Value
+substV v' (v, j) = varmapV (\ cur (x, i) -> if i == j+cur then shiftV cur v else Var x i) 0 v'
+
 subst :: Comp -> [(Value, Int)] -> Comp
 subst c [] = c
 subst c ((v, j) : as) = subst (substC c (v, j)) as
-
 -- apps2app :: Value -> [Value] -> Comp
 -- apps2app f []     = error "apps2app: [] is impossible"
 -- apps2app f [v]    = App f v

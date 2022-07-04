@@ -34,6 +34,8 @@ data Value
   | Vsum (Either Value Value)
   | Vret Value | Vflag Value -- opened, closed
   | Vmem (Memory Value)
+  -- internal:
+  | Fix Value                                      -- ^ fix v
   deriving (Show, Eq)
 
 -- | Handler Clauses Syntax
@@ -74,6 +76,7 @@ data Comp
   | Do Name Comp Comp                              -- ^ do x <- c1; c2
   | App Value Value                                -- ^ v1 v2
   | Let Name Value Comp                            -- ^ let x = v in c
+  | LetRec Name Value Comp                         -- ^ letrec x = v in c
   -- syntactic sugars:
   | App' [Value]
   -- extensions:
@@ -198,12 +201,14 @@ class SubstEffectType a where
 instance SubstValueType TypeOpt where
   substVT (x, t) (TNil t') = TNil $ substVT (x, t) t'
   substVT (x, t) (TAbs y k t') | x == y = TAbs y k t'
-  substVT (x, t) (TAbs y k t') | x /= y = TAbs y k (substVT (x, t) t')
+  substVT (x, t) (TAbs y k t') | x /= y = TAbs  y k (substVT (x, t) t')
+  substVT _ _ = undefined
 
 instance SubstEffectType TypeOpt where
   substET (x, t) (TNil t') = TNil $ substET (x, t) t'
   substET (x, t) (TAbs y k t') | x == y = TAbs y k t'
   substET (x, t) (TAbs y k t') | x /= y = TAbs y k (substET (x, t) t')
+  substET _ _ = undefined
 
 instance SubstValueType VType where
   substVT (x, t) a = case a of
@@ -221,7 +226,7 @@ instance SubstValueType VType where
     TInt -> TInt
     TEmpty -> TEmpty
     THand t1 t2 -> error "Are you serious?"
-    -- oth -> error $ "substVT undefined for " ++ show oth
+    oth -> error $ "substVT undefined for " ++ show oth
 
 instance SubstEffectType VType where
   substET (x, t) a = case a of
@@ -238,7 +243,7 @@ instance SubstEffectType VType where
     TInt -> TInt
     TEmpty -> TEmpty
     THand t1 t2 -> error "Are you serious?"
-    -- oth -> error $ "substET undefined for " ++ show oth
+    oth -> error $ "substET undefined for " ++ show oth
 
 instance SubstEffectType EType where
   substET (x, t) a = case a of
@@ -246,6 +251,7 @@ instance SubstEffectType EType where
     EVar y _ | x == y -> t
     EVar y b | x /= y -> EVar y b
     ECons l e -> ECons l (substET (x, t) e)
+    _ -> undefined
     -- non-exhaustive ??
 
 ----------------------------------------------------------------

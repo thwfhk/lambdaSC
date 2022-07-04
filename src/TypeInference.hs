@@ -434,6 +434,17 @@ inferC (Let x v c) = do
   (uC, theta2) <- inferC c
   put ctx
   return (uC, theta2 <^> theta1)
+inferC (LetRec x v c) = do
+  alpha <- freshV
+  ctx <- get
+  put $ addBinding ctx (x, TypeBind $ Mono alpha)
+  (a, theta1) <- inferV v
+  theta2 <- unify (theta1 <@> alpha) a
+  sigma <- gen (theta2 <^> theta1) (theta2 <@> a)
+  put $ addBinding (theta2 <^> theta1 <@> ctx) (x, TypeBind sigma)
+  (uC, theta3) <- inferC c
+  put ctx
+  return (uC, theta3 <^> theta2 <^> theta1)
 inferC (Return v) = do
   (a, theta) <- inferV v
   mu <- freshE

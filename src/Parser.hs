@@ -142,6 +142,7 @@ parseComp :: Parser Comp
 parseComp = (whiteSpace >>) . choice $
   [ parseRet
   , parseLet
+  , parseLetRec
   , parseOp
   , parseSc
   , parseDo
@@ -197,6 +198,19 @@ parseLet = do
   c <- parseComp
   setState ctx
   return $ Let x v c
+
+parseLetRec :: Parser Comp
+parseLetRec = do
+  reserved "letrec"
+  x <- identifier
+  ctx <- getState
+  setState $ addBinding ctx (x, NameBind) -- different from let
+  reservedOp "="
+  v <- parseValue
+  reserved "in"
+  c <- parseComp
+  setState ctx
+  return $ LetRec x v c
 
 parseOp :: Parser Comp
 parseOp = do
