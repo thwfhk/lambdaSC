@@ -46,3 +46,4 @@ RUN hOnce # (do f <- hInc # (
 RUN hOnce #
   sc once unit (_ . op choose unit)
                (b . if b then return "heads" else return "tails")
+

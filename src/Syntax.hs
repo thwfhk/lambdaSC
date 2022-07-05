@@ -94,6 +94,7 @@ data Comp
   | Head Value
   | Tail Value
   | Fst Value | Snd Value
+  | Cons Value Value
   | AppendS Value Value
   | HeadS Value
   | TailS Value
@@ -132,6 +133,7 @@ data VType
   | TCutList VType
   | TMem VType VType
   | TUnit
+  | TChar
   | TString
   | TBool
   | TInt
@@ -221,6 +223,7 @@ instance SubstValueType VType where
     TList ts -> TList (substVT (x, t) ts)
     TCutList ts -> TCutList (substVT (x, t) ts)
     TString -> TString
+    TChar -> TChar
     TUnit -> TUnit
     TBool -> TBool
     TInt -> TInt
@@ -308,12 +311,14 @@ builtInFunc1 =
 -- (name, constructor, is infix)
 builtInFunc2 :: [(String, Value -> Value -> Comp, Bool)]
 builtInFunc2 =
-  [ 
+  [
     --("concatMap", ConcatMap, False)
    ("concatMapCutList", ConcatMapCutList, False)
   , ("update", Update, False)
   , ("retrieve", Retrieve, False)
   , ("append", AppendCut, False)
+  , ("cons", Cons, False)
+  , ("consS", ConsS, False)
   , ("++", Append, True)
   , ("+", Add, True)
   , ("-", Minus, True)
@@ -327,13 +332,17 @@ builtInFuncType :: Name -> SType
 builtInFuncType s = case s of
   "add" -> fmu s . Mono $ TPair TInt TInt <->> TInt <!> mu s
   "minus" -> fmu s . Mono $ TPair TInt TInt <->> TInt <!> mu s
+  "mul" -> fmu s . Mono $ TPair TInt TInt <->> TInt <!> mu s
   "eq" -> fa s . fmu s . Mono $ TPair (a s) (a s)  <->> TBool <!> mu s
   "lt" -> fa s . fmu s . Mono $ TPair (a s) (a s)  <->> TBool <!> mu s
   "fst" -> fa s . fb s . fmu s . Mono $ TPair (a s) (b s) <->> a s <!> mu s
   "snd" -> fa s . fb s . fmu s . Mono $ TPair (a s) (b s) <->> b s <!> mu s
   "head" -> fa s . fmu s . Mono $ TList (a s) <->> a s <!> mu s
   "tail" -> fa s . fmu s . Mono $ TList (a s) <->> TList (a s) <!> mu s
+  "read" -> fmu s . Mono $ TList TChar <->> TInt <!> mu s
   "append" -> fa s . fmu s . Mono $ TPair (TList (a s)) (TList (a s)) <->> TList (a s) <!> mu s
+  "cons" -> fa s . fmu s . Mono $ TPair (a s) (TList (a s)) <->> TList (a s) <!> mu s
+  "consS" -> fmu s . Mono $ TPair TChar TString <->> TString <!> mu s
   -- "concatMap" -> fa s . fb s . fmu s . Mono $
     -- TPair (TList (b s)) (b s <->> TList (a s) <!> mu s) <->> TList (a s) <!> mu s
   "newmem" -> fa s . fb s . fmu s . Mono $ TUnit <->> TMem (a s) (b s) <!> mu s

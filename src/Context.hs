@@ -32,6 +32,7 @@ sigma =
   , ("cut", (TUnit, TUnit))
   , ("call", (TUnit, TUnit))
   , ("depth", (TInt, TUnit))
+  , ("token", (TChar, TChar))
   ]
 
 emptyctx :: Context

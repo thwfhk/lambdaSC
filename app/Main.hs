@@ -31,44 +31,6 @@ runParseClauses = runParserT parseClauses emptyctx "CandyQwQ"
 runParseCmds :: String -> String -> Except Err (Either ParseError [Command])
 runParseCmds = runParserT parseCmds emptyctx
 
-inferCmd :: Command -> W (Either SType CType, Theta)
-inferCmd (Def x v False) = do
-  (a, theta) <- inferV v
-  sigma <- gen theta a
-  return (Left sigma, theta)
-inferCmd (Def x v True) = do
-  alpha <- freshV
-  ctx <- get
-  put $ addBinding ctx (x, TypeBind $ Mono alpha)
-  (a, theta1) <- inferV v
-  theta2 <- unify (theta1 <@> alpha) a
-  sigma <- gen (theta2 <^> theta1) (theta2 <@> a)
-  put ctx
-  return (Left sigma, theta2 <^> theta1)
-inferCmd (Run c) = do
-  (a, theta) <- inferC c
-  return (Right a, theta)
-
-inferCmds :: [Command] -> W [Either SType CType]
-inferCmds [] = return []
-inferCmds (Def x v b : cs) = do
-  (t, theta) <- inferCmd (Def x v b)
-  case t of
-    Left sigma -> do
-      ctx <- get
-      let nctx = addBinding (map (apply2bind theta) ctx) (x, TypeBind sigma)
-      put nctx
-    Right _ -> throwError "[IMPOSSIBLE] expect a type scheme"
-  ts <- inferCmds cs
-  return $ t : ts
-inferCmds (Run c : cs) = do
-  (t, _) <- inferCmd (Run c)
-  ts <- inferCmds cs
-  return $ t : ts
-
-isDef (Def _ _ _) = True
-isDef _ = False
-
 alphabets = map (:[]) ['a'..'z']
 
 runFile :: IO ()
@@ -98,10 +60,13 @@ runFile = do
                              return ()
             let cs = cmds2comps cmds
             putStrLn "[EVALUATION RESULTS 🥳]:"
-            --  mapM (\ c -> putStrLn $ "  " ++ show (eval c)) cs
-            mapM (\ c -> putStrLn $ " " ++ dropWhile (/= ' ') (printt (eval c))) cs
+            -- mapM (\ c -> putStrLn $ show c ++ " ||| " ++ show (eval c)) cs
+            mapM (\ c -> putStrLn $ " " ++ removeReturn (printt (eval c))) cs
             return ()
     _ -> putStrLn "file name error, enter REPL" >> repl
+
+removeReturn :: String -> String
+removeReturn s = if take 6 s == "return" then drop 7 s else s
 
 repl :: IO ()
 repl = do

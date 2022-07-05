@@ -52,18 +52,21 @@ instance MyPrinter Comp where
     Eq v1 v2 -> printt v1 ++ " = " ++ printt v2
     Lt v1 v2 -> printt v1 ++ " > " ++ printt v2
     Add v1 v2 -> printt v1 ++ " + " ++ printt v2
+    Mul v1 v2 -> printt v1 ++ " * " ++ printt v2
     Append v1 v2 -> printt v1 ++ " ++ " ++ printt v2
+    AppendCut v1 v2 -> "append " ++ printt v1 ++ " " ++ printt v2
     -- ConcatMap v1 v2 -> "concatMap " ++ printt v1 ++ " " ++ printt v2
     Retrieve v1 v2 -> "retrieve " ++ printt v1 ++ " " ++ printt v2
     Update v1 v2 -> "update " ++ printt v1 ++ " " ++ printt v2
     Head v -> "head " ++ printt v
     Fst v -> "fst " ++ printt v
     Snd v -> "snd " ++ printt v
-    _ -> undefined 
+    Cons v vs -> "cons " ++ printt v ++ " " ++ printt vs
+    _ -> error $ "NOT SUPPORTED: " ++ show c
   
 
 instance MyPrinter Handler where
-  printt h = "I don't want to print a handler :)"
+  printt h = "{handler " ++ show (oplist h) ++ show (sclist h) ++ "}"
 
 class MyTypePrinter a where
   printy :: a -> State (M.Map String String, [String]) String
@@ -107,6 +110,7 @@ instance MyTypePrinter VType where
       return $ "CutList " ++ s
     TUnit -> return "Unit"
     TString -> return "String"
+    TChar -> return "Char"
     TBool -> return "Bool"
     TInt -> return "Int"
     TEmpty -> return "Empty"

@@ -7,6 +7,7 @@ import Debug.Trace
 -- | Evaluation
 eval :: Comp -> Comp
 eval c = case eval1 c of
+  -- Just c' -> trace ("eval: " ++ show c') $ eval c'
   Just c' -> eval c'
   Nothing -> c
 
@@ -16,6 +17,7 @@ eval1 :: Comp -> Maybe Comp
 -- eval1 (App' vs) = return $ apps2app (head vs) (tail vs) -- desugar
 
 eval1 (App (Lam x c) v) = return . shiftC (-1) $ subst c [(shiftV 1 v, 0)]
+-- eval1 (App (Fix t) v) = 
 
 eval1 (Let x v c) = return . shiftC (-1) $ subst c [(shiftV 1 v, 0)]
 -- eval1 (LetRec x v c) = return $ Let x (Fix (Lam x (Return v))) c
@@ -75,6 +77,7 @@ eval1 (AppendS (Vstr xs) (Vstr ys)) = return . Return . Vstr $ xs ++ ys
 eval1 (HeadS (Vstr xs)) = return . Return . Vchar . head $ xs
 eval1 (TailS (Vstr xs)) = return . Return . Vstr . tail $ xs
 eval1 (ConsS (Vchar x) (Vstr xs)) = return . Return . Vstr $ (x:xs)
+eval1 (Cons v (Vlist vs)) = return . Return . Vlist $ (v:vs)
 eval1 (Read (Vstr xs)) = return . Return . Vint $ read xs
 
 eval1 (Retrieve (Vstr name) (Vmem m)) = return . Return $ retrieve name m
@@ -108,7 +111,6 @@ eval1 c = let c' = mapC id evalV c in
 evalV :: Value -> Value
 evalV (Fix (Lam x (Return v))) = shiftV (-1) $ substV v (Fix (Lam x (Return v)), 0)
 evalV v = v
--- evalV _ = error "impossible"
 
 ----------------------------------------------------------------
 -- Auxiliary functions for implementing the evaluation:
@@ -140,6 +142,7 @@ mapC fc fv c = case c of
   HeadS v -> HeadS (fv v)
   TailS v -> TailS (fv v)
   ConsS v1 v2 -> ConsS (fv v1) (fv v2)
+  Cons v1 v2 -> Cons (fv v1) (fv v2)
   Read v -> Read (fv v)
   AppendCut v1 v2 -> AppendCut (fv v1) (fv v2)
   -- ConcatMap v1 v2 -> ConcatMap (fv v1) (fv v2)
@@ -189,7 +192,7 @@ varmapC onvar cur c = case c of
     Handle v c -> Handle (fv cur v) (fc cur c)
     Do x c1 c2 -> Do x (fc cur c1) (fc (cur+1) c2)
     Let x v c  -> Let x (fv cur v) (fc (cur+1) c)
-    LetRec x v c  -> Let x (fv cur v) (fc (cur+1) c)
+    LetRec x v c  -> LetRec x (fv (cur+1) v) (fc (cur+1) c)
     Case v x c1 y c2 -> Case (fv cur v) x (fc (cur+1) c1) y (fc (cur+1) c2)
     oth -> mapC (fc cur) (fv cur) oth
   where
