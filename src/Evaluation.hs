@@ -7,7 +7,7 @@ import Debug.Trace
 -- | Evaluation
 eval :: Comp -> Comp
 eval c = case eval1 c of
-  -- Just c' -> trace ("eval: " ++ show c') $ eval c'
+  -- Just c' -> if length (show c') < 4000 then trace ("eval: " ++ show c') $ eval c' else eval c'
   Just c' -> eval c'
   Nothing -> c
 
@@ -17,7 +17,8 @@ eval1 :: Comp -> Maybe Comp
 -- eval1 (App' vs) = return $ apps2app (head vs) (tail vs) -- desugar
 
 eval1 (App (Lam x c) v) = return . shiftC (-1) $ subst c [(shiftV 1 v, 0)]
--- eval1 (App (Fix t) v) = 
+-- eval1 (App (Fix t) v) = if Fix t /= evalV (Fix t) then return $ App (evalV (Fix t)) v
+--                         else Nothing
 
 eval1 (Let x v c) = return . shiftC (-1) $ subst c [(shiftV 1 v, 0)]
 -- eval1 (LetRec x v c) = return $ Let x (Fix (Lam x (Return v))) c
@@ -79,6 +80,7 @@ eval1 (TailS (Vstr xs)) = return . Return . Vstr . tail $ xs
 eval1 (ConsS (Vchar x) (Vstr xs)) = return . Return . Vstr $ (x:xs)
 eval1 (Cons v (Vlist vs)) = return . Return . Vlist $ (v:vs)
 eval1 (Read (Vstr xs)) = return . Return . Vint $ read xs
+eval1 (Read (Vlist xs)) = return . Return . Vint $ read (map (\ (Vchar c) -> c) xs)
 
 eval1 (Retrieve (Vstr name) (Vmem m)) = return . Return $ retrieve name m
 eval1 (Update (Vpair (Vstr x, v)) (Vmem m)) = return . Return $ Vmem (update (x, v) m)

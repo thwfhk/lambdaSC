@@ -29,7 +29,8 @@ instance MyPrinter Value where
     Vret v -> "opened " ++ printt v
     Vflag v -> "closed " ++ printt v
     Vmem v -> "mem " ++ show v
-    _ -> "!!!! NOT SUPPORTED: " ++ show v
+    Fix v -> "Fix " ++ printt v
+    -- _ -> "NOT SUPPORTED: " ++ show v
 
 -- ideally, we only need "return"
 instance MyPrinter Comp where
@@ -62,6 +63,7 @@ instance MyPrinter Comp where
     Fst v -> "fst " ++ printt v
     Snd v -> "snd " ++ printt v
     Cons v vs -> "cons " ++ printt v ++ " " ++ printt vs
+    Read v -> "read (" ++ printt v ++ ")"
     _ -> error $ "NOT SUPPORTED: " ++ show c
   
 
