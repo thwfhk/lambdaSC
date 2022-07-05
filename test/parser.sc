@@ -1,13 +1,12 @@
 DEF hCut = handler [\ x . CutList x]
   {  return x      |->  return (opened [x])
   ,  op fail _ _   |->  return (opened [])
-  ,  op choose _ k |->  do xs <- k true; do ys <- k false; append xs ys
+  ,  op choose _ k |->  do xs <- k true; do ys <- k false; appendCutList xs ys
   ,  op cut _ k    |->  do ts <- k unit; close ts
   ,  sc call _ p k |->  do ts <- p unit; do ts' <- open ts; concatMapCutList ts' k
   ,  fwd f p k |-> f (p, \ z . concatMapCutList z k)
   }
 
--- TODO: 这里有一个type inference的问题
 DEF hToken = handler [\ x . Arr (List Char) ((x, List Char) ! <fail | mu>)]
   { return x     |->  return (\ s .  return (x, s))
   , op token x k |->  return (\ s .

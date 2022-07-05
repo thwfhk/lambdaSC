@@ -308,12 +308,10 @@ builtInFunc1 =
 -- (name, constructor, is infix)
 builtInFunc2 :: [(String, Value -> Value -> Comp, Bool)]
 builtInFunc2 =
-  [
-    --("concatMap", ConcatMap, False)
-   ("concatMapCutList", ConcatMapCutList, False)
+  [ ("concatMapCutList", ConcatMapCutList, False)
   , ("update", Update, False)
   , ("retrieve", Retrieve, False)
-  , ("append", AppendCut, False)
+  , ("appendCutList", AppendCut, False)
   , ("cons", Cons, False)
   , ("++", Append, True)
   , ("+", Add, True)
@@ -338,8 +336,6 @@ builtInFuncType s = case s of
   "read" -> fmu s . Mono $ TList TChar <->> TInt <!> mu s
   "append" -> fa s . fmu s . Mono $ TPair (TList (a s)) (TList (a s)) <->> TList (a s) <!> mu s
   "cons" -> fa s . fmu s . Mono $ TPair (a s) (TList (a s)) <->> TList (a s) <!> mu s
-  -- "concatMap" -> fa s . fb s . fmu s . Mono $
-    -- TPair (TList (b s)) (b s <->> TList (a s) <!> mu s) <->> TList (a s) <!> mu s
   "newmem" -> fa s . fb s . fmu s . Mono $ TUnit <->> TMem (a s) (b s) <!> mu s
   "retrieve" -> fa s . fb s . fmu s . Mono $ TPair (a s) (TMem (a s) (b s)) <->> b s <!> mu s
   "update" -> fa s . fb s . fmu s . Mono $

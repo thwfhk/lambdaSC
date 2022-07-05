@@ -71,7 +71,7 @@ langDef = emptyDef
             , "tail"
             -- , "concatMap"
             , "concatMapCutList"
-            , "append"
+            , "appendCutList"
             , "open"
             , "close"
             , "opened"
