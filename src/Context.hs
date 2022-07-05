@@ -35,6 +35,25 @@ sigma =
   , ("token", (TChar, TChar))
   ]
 
+isOp :: Name -> Bool
+isOp "token"  = True
+isOp "depth"  = False
+isOp "call"   = False
+isOp "cut"    = True
+isOp "local"  = False
+isOp "put"    = True
+isOp "get"    = True
+isOp "inc"    = True
+isOp "catch"  = False
+isOp "raise"  = True
+isOp "once"   = False
+isOp "fail"   = True
+isOp "choose" = True
+isOp _ = undefined
+
+isSc :: Name -> Bool
+isSc = not . isOp
+
 emptyctx :: Context
 emptyctx = []
 

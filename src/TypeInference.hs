@@ -326,6 +326,7 @@ inferEmp m = do
 inferOp :: TypeOpt -> [(Name, (Name, Name, Comp))] -> W (CType, Theta)
 inferOp m [] = inferEmp m
 inferOp m ((l, (x, k, c)) : ops) = do
+  when (isSc l) . throwError $ "inferOp : " ++ l ++ " is not an algebraic operation"
   (_, (al, bl)) <- name2entry sigma l
   (uD, theta1) <- inferOp m ops
   let CT (TApp m' a) e = uD -- if not, an error will be throwed
@@ -345,6 +346,7 @@ inferOp m ((l, (x, k, c)) : ops) = do
 inferSc :: TypeOpt -> [(Name, (Name, Name, Name, Comp))] -> W (CType, Theta)
 inferSc m [] = inferEmp m
 inferSc m ((l, (x, p, k, c)) : scs) = do
+  when (isOp l) . throwError $ "inferSc : " ++ l ++ " is not a scoped operation"
   (_, (al, bl)) <- name2entry sigma l
   beta <- freshTV -- fresh value type variable
   (uD, theta1) <- inferSc m scs
@@ -499,6 +501,7 @@ inferC (Absurd v) = do
 
 
 inferC (Op l v (y :. c)) = do
+  when (isSc l) . throwError $ "inferOp : " ++ l ++ " is not an algebraic operation"
   (_, (al, bl)) <- name2entry sigma l
   (a, theta1) <- inferV v
   theta2 <- unify al a
@@ -512,6 +515,7 @@ inferC (Op l v (y :. c)) = do
   return (theta4 <@> a' <!> e, theta4 <^> theta3 <^> theta2 <^> theta1)
 
 inferC (Sc l v (y :. c1) (z :. c2)) = do
+  when (isOp l) . throwError $ "inferOp : " ++ l ++ " is not a scoped operation"
   (_, (al, bl)) <- name2entry sigma l
   (a, theta1) <- inferV v
   theta2 <- unify al a
