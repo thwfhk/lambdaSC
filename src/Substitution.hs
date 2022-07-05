@@ -25,7 +25,6 @@ instance Applicable VType where
   apply s (THand t1 t2) = THand (apply s t1) (apply s t2)
   apply s (TList t) = TList (apply s t)
   apply s (TCutList t) = TCutList (apply s t)
-  apply s TString = TString
   apply s TChar = TChar
   apply s TUnit = TUnit
   apply s TBool = TBool

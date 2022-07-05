@@ -29,7 +29,7 @@ data Value
   | Vbool Bool
   | Vint Int
   | Vchar Char
-  | Vstr String   -- ^ for simplicity, we separate lists and strings
+  --  | Vstr String   -- ^ for simplicity, we separate lists and strings
   | Vlist [Value]
   | Vsum (Either Value Value)
   | Vret Value | Vflag Value -- opened, closed
@@ -95,10 +95,6 @@ data Comp
   | Tail Value
   | Fst Value | Snd Value
   | Cons Value Value
-  | AppendS Value Value
-  | HeadS Value
-  | TailS Value
-  | ConsS Value Value
   | Read Value
   -- | ConcatMap Value Value
   | AppendCut Value Value
@@ -134,12 +130,15 @@ data VType
   | TMem VType VType
   | TUnit
   | TChar
-  | TString
+  --  | TString
   | TBool
   | TInt
   | TEmpty
   | TApp TypeOpt VType
   deriving (Show, Eq)
+
+tString :: VType
+tString = TList TChar
 
 data CType = CT VType EType
   deriving (Show, Eq)
@@ -222,7 +221,6 @@ instance SubstValueType VType where
     TSum t1 t2 -> TSum (substVT (x, t) t1) (substVT (x, t) t2)
     TList ts -> TList (substVT (x, t) ts)
     TCutList ts -> TCutList (substVT (x, t) ts)
-    TString -> TString
     TChar -> TChar
     TUnit -> TUnit
     TBool -> TBool
@@ -240,7 +238,6 @@ instance SubstEffectType VType where
     TSum t1 t2 -> TSum (substET (x, t) t1) (substET (x, t) t2)
     TList ts -> TList (substET (x, t) ts)
     TCutList ts -> TCutList (substET (x, t) ts)
-    TString -> TString
     TUnit -> TUnit
     TBool -> TBool
     TInt -> TInt
@@ -318,7 +315,6 @@ builtInFunc2 =
   , ("retrieve", Retrieve, False)
   , ("append", AppendCut, False)
   , ("cons", Cons, False)
-  , ("consS", ConsS, False)
   , ("++", Append, True)
   , ("+", Add, True)
   , ("-", Minus, True)
@@ -342,7 +338,6 @@ builtInFuncType s = case s of
   "read" -> fmu s . Mono $ TList TChar <->> TInt <!> mu s
   "append" -> fa s . fmu s . Mono $ TPair (TList (a s)) (TList (a s)) <->> TList (a s) <!> mu s
   "cons" -> fa s . fmu s . Mono $ TPair (a s) (TList (a s)) <->> TList (a s) <!> mu s
-  "consS" -> fmu s . Mono $ TPair TChar TString <->> TString <!> mu s
   -- "concatMap" -> fa s . fb s . fmu s . Mono $
     -- TPair (TList (b s)) (b s <->> TList (a s) <!> mu s) <->> TList (a s) <!> mu s
   "newmem" -> fa s . fb s . fmu s . Mono $ TUnit <->> TMem (a s) (b s) <!> mu s
@@ -365,6 +360,17 @@ builtInFuncType s = case s of
 
 ----------------------------------------------------------------
 -- Utilities
+
+cs2str :: [Value] -> String
+cs2str = map (\ (Vchar c) -> c)
+
+-- lchar2str :: Value -> Value
+-- lchar2str (Vlist vs) = Vstr $ map (\ (Vchar c) -> c) vs
+-- lchar2str _ = undefined
+
+-- str2lchar :: Value -> Value
+-- str2lchar (Vstr s) = Vlist $ map Vchar s
+-- str2lchar _ = undefined
 
 appendEff :: [Name] -> EType -> EType
 appendEff [] e = e

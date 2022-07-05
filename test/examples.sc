@@ -7,7 +7,15 @@ DEF hInc = handler [\ x . Arr Int ((x, Int) ! mu)]
     ))
   }
 
-
+REC concatMap = \ bs . return (
+  \ f . do e <- bs == [];
+           if e then return []
+           else do b <- head bs;
+                do bs' <- tail bs;
+                do as <- f b;
+                do as' <- concatMap bs' f;
+                as ++ as'
+  )
 DEF hOnce = handler [\ x . List x]
   { return x      |-> return [x]
   , op fail _ _   |-> return []

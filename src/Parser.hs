@@ -470,7 +470,7 @@ parseTBool :: Parser VType
 parseTBool = reserved "Bool" >> return TBool
 
 parseTString :: Parser VType
-parseTString = reserved "String" >> return TString
+parseTString = reserved "String" >> return (TList TChar)
 
 parseTChar :: Parser VType
 parseTChar = reserved "Char" >> return TChar

@@ -22,8 +22,10 @@ instance MyPrinter Value where
     Vbool b -> if b then "true" else "false"
     Vint n -> show n
     Vchar c -> show c
-    Vstr s -> "\"" ++ s ++ "\""
-    Vlist vs -> "[" ++ drop 2 (foldl (\s v -> s ++ ", " ++ printt v) "" vs) ++ "]"
+    Vlist vs -> if vs /= [] then case head vs of
+      Vchar _ -> "\"" ++ map (\(Vchar c) -> c) vs ++ "\""
+      _ -> "[" ++ drop 2 (foldl (\s v -> s ++ ", " ++ printt v) "" vs) ++ "]"
+      else "[]"
     Vsum e -> case e of Left x -> "left " ++ printt x
                         Right x -> "right " ++ printt x
     Vret v -> "opened " ++ printt v
@@ -111,7 +113,6 @@ instance MyTypePrinter VType where
       s <- printy t
       return $ "CutList " ++ s
     TUnit -> return "Unit"
-    TString -> return "String"
     TChar -> return "Char"
     TBool -> return "Bool"
     TInt -> return "Int"

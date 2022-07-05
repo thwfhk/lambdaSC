@@ -1,6 +1,15 @@
 -- define a handler for non-determinism using the keyword DEF
 -- write the type annotation of handlers in the brackets
 
+REC concatMap = \ bs . return (
+  \ f . do e <- bs == [];
+           if e then return []
+           else do b <- head bs;
+                do bs' <- tail bs;
+                do as <- f b;
+                do as' <- concatMap bs' f;
+                as ++ as'
+  )
 DEF hND = handler [\ x . List x]
   { return x      |-> return [x]
   , op fail _ _   |-> return []

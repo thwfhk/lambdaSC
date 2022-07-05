@@ -74,16 +74,11 @@ eval1 (Tail (Vlist xs)) = return . Return . Vlist . tail $ xs
 --             Do "as'" (ConcatMap (shiftV 1 $ Vlist xs) (shiftV 1 f)) $
 --             Append (Var "as" 1) (Var "as'" 0)
 
-eval1 (AppendS (Vstr xs) (Vstr ys)) = return . Return . Vstr $ xs ++ ys
-eval1 (HeadS (Vstr xs)) = return . Return . Vchar . head $ xs
-eval1 (TailS (Vstr xs)) = return . Return . Vstr . tail $ xs
-eval1 (ConsS (Vchar x) (Vstr xs)) = return . Return . Vstr $ (x:xs)
 eval1 (Cons v (Vlist vs)) = return . Return . Vlist $ (v:vs)
-eval1 (Read (Vstr xs)) = return . Return . Vint $ read xs
-eval1 (Read (Vlist xs)) = return . Return . Vint $ read (map (\ (Vchar c) -> c) xs)
+eval1 (Read (Vlist xs)) = return . Return . Vint $ read (cs2str xs)
 
-eval1 (Retrieve (Vstr name) (Vmem m)) = return . Return $ retrieve name m
-eval1 (Update (Vpair (Vstr x, v)) (Vmem m)) = return . Return $ Vmem (update (x, v) m)
+eval1 (Retrieve (Vlist name) (Vmem m)) = return . Return $ retrieve (cs2str name) m
+eval1 (Update (Vpair (Vlist x, v)) (Vmem m)) = return . Return $ Vmem (update (cs2str x, v) m)
 eval1 (Newmem Vunit) = return . Return $ Vmem emptymem
 
 eval1 (AppendCut (Vret (Vlist xs)) (Vret (Vlist ys)))  = return . Return . Vret  . Vlist $ xs ++ ys
@@ -140,10 +135,6 @@ mapC fc fv c = case c of
   Tail v -> Tail (fv v)
   Fst v -> Fst (fv v)
   Snd v -> Snd (fv v)
-  AppendS v1 v2 -> AppendS (fv v1) (fv v2)
-  HeadS v -> HeadS (fv v)
-  TailS v -> TailS (fv v)
-  ConsS v1 v2 -> ConsS (fv v1) (fv v2)
   Cons v1 v2 -> Cons (fv v1) (fv v2)
   Read v -> Read (fv v)
   AppendCut v1 v2 -> AppendCut (fv v1) (fv v2)
@@ -181,7 +172,6 @@ mapV fc fv v = case v of
   Vunit -> Vunit
   Vbool b -> Vbool b
   Vint n -> Vint n
-  Vstr s -> Vstr s
   Vchar c -> Vchar c
   Vhandler h -> Vhandler (mapH fc h)
   Fix v -> Fix (fv v)

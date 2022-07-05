@@ -201,7 +201,6 @@ inferV Vunit = return (TUnit, M.empty)
 inferV (Vbool _) = return (TBool, M.empty)
 inferV (Vint _) = return (TInt, M.empty)
 inferV (Vchar _) = return (TChar, M.empty)
-inferV (Vstr _) = return (TString, M.empty)
 inferV (Vpair (v1, v2)) = do
   (a1, theta1) <- inferV v1
   ctx <- get
@@ -548,7 +547,6 @@ inferC (Head v) = inferFunc1 "head" v
 inferC (Tail v) = inferFunc1 "tail" v
 inferC (Read v) = inferFunc1 "read" v
 inferC (Cons v1 v2) = inferFunc2 "cons" v1 v2
-inferC (ConsS v1 v2) = inferFunc2 "consS" v1 v2
 inferC (Append v1 v2) = inferFunc2 "append" v1 v2
 inferC (AppendCut v1 v2) = inferFunc2 "appendCut" v1 v2
 -- inferC (ConcatMap v1 v2) = inferFunc2 "concatMap" v1 v2
