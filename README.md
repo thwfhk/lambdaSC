@@ -57,5 +57,5 @@ There are three main directories:
   - `catch.sc` : exceptions (paper Section 7.3)
   - `local.sc` : local state (paper Section 7.4)
   - `depth.sc` : depth-Bounded Search (paper Section 7.5)
-  - no parser
+  - `parser.sc` : parser (paper Section 7.6)
 

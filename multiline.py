@@ -16,8 +16,17 @@ def string2haskell(name, s):
 
 output = "module CodeString where\n\n"
 
+fileNames = [ "intro.sc"
+            , "catch.sc"
+            , "cut.sc"
+            , "local.sc"
+            , "depth.sc"
+            , "once.sc"
+            , "parser.sc"
+            ]
+
 for fileName in os.listdir("./test"):
-  if fileName == "examples.sc":
+  if fileName not in fileNames:
     continue
   f = open("./test/" + fileName, "r")
   s = f.read()

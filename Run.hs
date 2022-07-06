@@ -15,32 +15,6 @@ import qualified Data.Map as M
 runParseCmds :: String -> String -> Except Err (Either ParseError [Command])
 runParseCmds = runParserT parseCmds emptyctx
 
-inferCmd :: Command -> W (Either SType CType, Theta)
-inferCmd (Def x v) = do
-  (a, theta) <- inferV v
-  sigma <- gen theta a
-  return (Left sigma, theta)
-inferCmd (Run c) = do
-  (a, theta) <- inferC c
-  return (Right a, theta)
-
-inferCmds :: [Command] -> W [Either SType CType]
-inferCmds [] = return []
-inferCmds (Def x v : cs) = do
-  (t, theta) <- inferCmd (Def x v)
-  case t of
-    Left sigma -> do
-      ctx <- get
-      let nctx = addBinding (map (apply2bind theta) ctx) (x, TypeBind sigma)
-      put nctx
-    Right _ -> throwError "[IMPOSSIBLE] expect a type scheme"
-  ts <- inferCmds cs
-  return $ t : ts
-inferCmds (Run c : cs) = do
-  (t, _) <- inferCmd (Run c)
-  ts <- inferCmds cs
-  return $ t : ts
-
 alphabets = map (:[]) ['a'..'z']
 
 interpret :: String -> String
@@ -57,7 +31,7 @@ interpret input =
         in let tres =
                 case ts of
                   Left err -> "[TYPE INFERENCE FAILED 😵]: " ++ show err
-                  Right ts -> let names = (\ x -> case x of Def s _ -> s
+                  Right ts -> let names = (\ x -> case x of Def s _ _ -> s
                                                             Run _ -> "") <$> cmds
                               in let res = concatMap (\(n, t) -> "  " ++
                                            (if n /= "" then n ++ " : " else "") ++
@@ -66,9 +40,11 @@ interpret input =
         in let cs = cmds2comps cmds
           --  putStrLn (show cs)
         in let info2 = "[EVALUATION RESULTS 🥳]:"
-        in let results = concatMap (\ c -> " " ++ dropWhile (/= ' ') (printt (eval c)) ++ "\n") cs
+        in let results = concatMap (\ c -> " " ++ removeReturn (printt (eval c)) ++ "\n") cs
         in info ++ "\n" ++ tres ++ "\n" ++ info2 ++ "\n" ++ results
 
+removeReturn :: String -> String
+removeReturn s = if take 6 s == "return" then drop 7 s else s
 
 string2html :: String -> String
 string2html s = concatMap f s

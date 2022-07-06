@@ -1,34 +1,5 @@
 module CodeString where
 
-nd = "\
-  \-- define a handler for non-determinism using the keyword DEF \n\
-  \-- write the type annotation of handlers in the brackets \n\
-  \ \n\
-  \DEF hND = handler [\\ x . List x] \n\
-  \  { return x      |-> return [x] \n\
-  \  , op fail _ _   |-> return [] \n\
-  \  , op choose _ k |-> do xs <- k true; do ys <- k false ; xs ++ ys \n\
-  \  , fwd f p k     |-> f (p, \\ z . concatMap z k) \n\
-  \  } \n\
-  \ \n\
-  \ \n\
-  \-- apply the handler to a computation using the keyword RUN \n\
-  \ \n\
-  \RUN hND # op choose unit (b . if b then return \"heads\" else return \"tails\") \n\
-  \ \n\
-  \ \n\
-  \-- or directly write the definition of the handler in the computation \n\
-  \-- instead of defining first \n\
-  \ \n\
-  \RUN handler [\\ x . List x] \n\
-  \  { return x      |-> return [x] \n\
-  \  , op fail _ _   |-> return [] \n\
-  \  , op choose _ k |-> do xs <- k true; do ys <- k false ; xs ++ ys \n\
-  \  , fwd f p k |-> f (p, \\ z . concatMap z k) \n\
-  \  } # op choose unit (b . if b then return \"heads\" else return \"tails\") \n\
-  \ \n\
-  \"
-
 local = "\
   \DEF hState = handler [\\ x . Arr (Mem String Int) ((x, Mem String Int) ! mu)] \n\
   \  { return x        |-> return (\\ m . return (x, m)) \n\
@@ -65,7 +36,7 @@ cut = "\
   \DEF hCut = handler [\\ x . CutList x] \n\
   \  {  return x      |->  return (opened [x]) \n\
   \  ,  op fail _ _   |->  return (opened []) \n\
-  \  ,  op choose _ k |->  do xs <- k true; do ys <- k false; append xs ys \n\
+  \  ,  op choose _ k |->  do xs <- k true; do ys <- k false; appendCutList xs ys \n\
   \  ,  op cut _ k    |->  do ts <- k unit; close ts \n\
   \  ,  sc call _ p k |->  do ts <- p unit; do ts' <- open ts; concatMapCutList ts' k \n\
   \  , fwd f p k |-> f (p, \\ z . concatMapCutList z k) \n\
@@ -83,20 +54,6 @@ cut = "\
   \ \n\
   \"
 
-start = "\
-  \-- define a handler for non-determinism using the keyword DEF \n\
-  \DEF hND = handler [\\ x . List x] \n\
-  \  { return x      |-> return [x] \n\
-  \  , op fail _ _   |-> return [] \n\
-  \  , op choose _ k |-> do xs <- k true; do ys <- k false ; xs ++ ys \n\
-  \  , fwd f p k |-> f (p, \\ z . concatMap z k) \n\
-  \  } \n\
-  \ \n\
-  \-- apply the handler to a computation using the keyword RUN \n\
-  \RUN hND # op choose unit (b . if b then return \"heads\" else return \"tails\") \n\
-  \ \n\
-  \"
-
 once = "\
   \DEF hInc = handler [\\ x . Arr Int ((x, Int) ! mu)] \n\
   \  { return x   |-> return (\\ s . return (x, s)) \n\
@@ -107,6 +64,16 @@ once = "\
   \    )) \n\
   \  } \n\
   \ \n\
+  \REC concatMap = \\ bs . return ( \n\
+  \  \\ f . do e <- bs == []; \n\
+  \           if e then return [] \n\
+  \           else do b <- head bs; \n\
+  \                do bs' <- tail bs; \n\
+  \                do as <- f b; \n\
+  \                do as' <- concatMap bs' f; \n\
+  \                as ++ as' \n\
+  \  ) \n\
+  \ \n\
   \DEF hOnce = handler [\\ x . List x] \n\
   \  { return x      |-> return [x] \n\
   \  , op fail _ _   |-> return [] \n\
@@ -116,6 +83,8 @@ once = "\
   \  } \n\
   \ \n\
   \---------------------------------------------------------------- \n\
+  \ \n\
+  \RUN do f <- hInc # (op inc unit); f 0 \n\
   \ \n\
   \RUN hOnce # (do f <- hInc # ( \n\
   \  op choose unit (b . if b then op inc unit else op inc unit) \n\
@@ -135,9 +104,89 @@ once = "\
   \  sc once unit (_ . op choose unit) \n\
   \               (b . if b then return \"heads\" else return \"tails\") \n\
   \ \n\
+  \ \n\
+  \"
+
+parser = "\
+  \DEF hCut = handler [\\ x . CutList x] \n\
+  \  {  return x      |->  return (opened [x]) \n\
+  \  ,  op fail _ _   |->  return (opened []) \n\
+  \  ,  op choose _ k |->  do xs <- k true; do ys <- k false; appendCutList xs ys \n\
+  \  ,  op cut _ k    |->  do ts <- k unit; close ts \n\
+  \  ,  sc call _ p k |->  do ts <- p unit; do ts' <- open ts; concatMapCutList ts' k \n\
+  \  ,  fwd f p k |-> f (p, \\ z . concatMapCutList z k) \n\
+  \  } \n\
+  \ \n\
+  \DEF hToken = handler [\\ x . Arr (List Char) ((x, List Char) ! <fail | mu>)] \n\
+  \  { return x     |->  return (\\ s .  return (x, s)) \n\
+  \  , op token x k |->  return (\\ s . \n\
+  \      do b <- s == []; \n\
+  \         if b then op fail unit (y . absurd y) \n\
+  \              else do x' <- head s; \n\
+  \                   do xs <- tail s; \n\
+  \                   do b <- x == x'; \n\
+  \                      if b then k x xs else op fail unit (y . absurd y)) \n\
+  \  , fwd f p k |-> return (\\ s . f ( \n\
+  \      \\ y . p y s , \n\
+  \      \\ zs . do z <- fst zs; do s' <- snd zs; k z s' \n\
+  \    )) \n\
+  \  } \n\
+  \ \n\
+  \REC many1 = \\ p . do a <- p unit; do as <- or (many1 p) (return []); cons a as \n\
+  \ \n\
+  \DEF digit = \\ _ . \n\
+  \  or (op token '0') ( \n\
+  \  or (op token '1') ( \n\
+  \  or (op token '2') ( \n\
+  \  or (op token '3') ( \n\
+  \  or (op token '4') ( \n\
+  \  or (op token '5') ( \n\
+  \  or (op token '6') ( \n\
+  \  or (op token '7') ( \n\
+  \  or (op token '8') (op token '9') \n\
+  \    )))))))) \n\
+  \ \n\
+  \-- Because the interpreter does not support mutual recursion, we define \n\
+  \-- expr, term, and factor together. \n\
+  \REC exprAll = \\ index . \n\
+  \  do b <- index == 1; if b then \n\
+  \          or  (do i <- exprAll 2; do _ <- op token '+'; do j <- exprAll 1; i+j) \n\
+  \              (exprAll 2) \n\
+  \     else do b <- index == 2; if b then \n\
+  \          or  (do i <- exprAll 3; do _ <- op token '*'; do j <- exprAll 2; i*j) \n\
+  \              (exprAll 3) \n\
+  \     else or  (do ds <- many1 digit; read ds) \n\
+  \              (do _ <- op token '('; do i <- exprAll 1; do _ <- op token ')'; return i) \n\
+  \ \n\
+  \-- The improved version of expr using the cut operation. \n\
+  \REC exprAll' = \\ index . \n\
+  \  do b <- index == 1; if b then \n\
+  \          do i <- exprAll' 2; \n\
+  \             sc call unit (_ . or (do _ <- op token '+'; do _ <- op cut unit; do j <- exprAll' 1; i+j) \n\
+  \                                  (return i)) \n\
+  \     else do b <- index == 2; if b then \n\
+  \          or  (do i <- exprAll' 3; do _ <- op token '*'; do j <- exprAll' 2; i*j) \n\
+  \              (exprAll' 3) \n\
+  \     else or  (do ds <- many1 digit; read ds) \n\
+  \              (do _ <- op token '('; do i <- exprAll' 1; do _ <- op token ')'; return i) \n\
+  \ \n\
+  \ \n\
+  \RUN hCut # (do f <- hToken # exprAll 1; f \"(2+5)*8\") \n\
+  \ \n\
+  \RUN hCut # (do f <- hToken # exprAll' 1; f \"(2+5)*8\") \n\
   \"
 
 depth = "\
+  \REC concatMap = \\ bs . return ( \n\
+  \  \\ f . do e <- bs == []; \n\
+  \           if e then return [] \n\
+  \           else do b <- head bs; \n\
+  \                do bs' <- tail bs; \n\
+  \                do as <- f b; \n\
+  \                do as' <- concatMap bs' f; \n\
+  \                as ++ as' \n\
+  \  ) \n\
+  \ \n\
   \DEF hDepth = handler [\\ x . Arr Int (List (x, Int) ! mu)] \n\
   \  {  return x        |->  return (\\ d . return [(x, d)]) \n\
   \  ,  op fail _ _     |->  return (\\ _ . return []) \n\
@@ -218,5 +267,61 @@ catch = "\
   \                        else return x \n\
   \         else return 10) \n\
   \)); f 42 \n\
+  \"
+
+intro = "\
+  \-- Define non-recursive functions using the keyword DEF \n\
+  \DEF f = \\ x . x + 1 \n\
+  \ \n\
+  \-- Define recursive functions using the keyword REC \n\
+  \REC g = \\ x . do b <- x == 0;  \n\
+  \                 if b then return 0 \n\
+  \                      else do x' <- x - 1; \n\
+  \                           do s <- g x'; \n\
+  \                           x + s \n\
+  \ \n\
+  \-- The auxiliary function `concatMap` used by the handler `hND` \n\
+  \REC concatMap = \\ bs . return ( \n\
+  \  \\ f . do e <- bs == []; \n\
+  \           if e then return [] \n\
+  \           else do b <- head bs; \n\
+  \                do bs' <- tail bs; \n\
+  \                do as <- f b; \n\
+  \                do as' <- concatMap bs' f; \n\
+  \                as ++ as' \n\
+  \  ) \n\
+  \ \n\
+  \-- The handler `hND` for non-determinism \n\
+  \-- The type annotation of the handler used by the type inference appears in the brackets \n\
+  \DEF hND = handler [\\ x . List x] \n\
+  \  { return x      |-> return [x] \n\
+  \  , op fail _ _   |-> return [] \n\
+  \  , op choose _ k |-> do xs <- k true; do ys <- k false ; xs ++ ys \n\
+  \  , fwd f p k     |-> f (p, \\ z . concatMap z k) \n\
+  \  } \n\
+  \ \n\
+  \-- The type inference gives the following type to `hND`: \n\
+  \--   hND : ∀a:*. ∀b:Eff. a ! <fail; choose | b> => List a ! b \n\
+  \-- Different from the paper, we add kinds to explicitly distinguish between type \n\
+  \-- variables, and we use `|` to seperate the row type variable from other labels. \n\
+  \---------------------------------------------------------------- \n\
+  \ \n\
+  \-- RUN a computation using the keyword RUN \n\
+  \-- Note that all RUN statements must appear after all DEF and REC statements \n\
+  \RUN g 5 \n\
+  \ \n\
+  \-- Apply the handler `hND` to a non-deterministic computation \n\
+  \RUN hND # op choose unit (b . if b then return \"heads\" else return \"tails\") \n\
+  \ \n\
+  \ \n\
+  \-- You can also directly write the definition of the handler in the computation \n\
+  \-- instead of defining it first \n\
+  \RUN handler [\\ x . List x] \n\
+  \  { return x      |-> return [x] \n\
+  \  , op fail _ _   |-> return [] \n\
+  \  , op choose _ k |-> do xs <- k true; do ys <- k false ; xs ++ ys \n\
+  \  , fwd f p k |-> f (p, \\ z . concatMap z k) \n\
+  \  } # op choose unit (b . if b then return \"heads\" else return \"tails\") \n\
+  \ \n\
   \"
 

@@ -16,9 +16,9 @@ main = do
     v <- value editor
     innerHTML output (f v))
 
-  button <- getElementById "nd"
+  button <- getElementById "intro"
   addEventListener button "click" (\_ -> do
-    setValue editor nd)
+    setValue editor intro)
 
   button <- getElementById "once"
   addEventListener button "click" (\_ -> do
@@ -39,3 +39,7 @@ main = do
   button <- getElementById "depth"
   addEventListener button "click" (\_ -> do
     setValue editor depth)
+
+  button <- getElementById "parser"
+  addEventListener button "click" (\_ -> do
+    setValue editor parser)
