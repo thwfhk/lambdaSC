@@ -1,3 +1,13 @@
+REC concatMap = \ bs . return (
+  \ f . do e <- bs == [];
+           if e then return []
+           else do b <- head bs;
+                do bs' <- tail bs;
+                do as <- f b;
+                do as' <- concatMap bs' f;
+                as ++ as'
+  )
+
 DEF hDepth = handler [\ x . Arr Int (List (x, Int) ! mu)]
   {  return x        |->  return (\ d . return [(x, d)])
   ,  op fail _ _     |->  return (\ _ . return [])
