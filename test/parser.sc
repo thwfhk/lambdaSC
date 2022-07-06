@@ -61,6 +61,8 @@ REC exprAll' = \ index .
               (do _ <- op token '('; do i <- exprAll' 1; do _ <- op token ')'; return i)
 
 
-RUN hCut # (do f <- hToken # exprAll 1; f "(2+5)*8")
+-- DO NOT RUN THIS! VERY SLOW!
+-- RUN hCut # (do f <- hToken # exprAll 1; f "(2+5)*8")
 
+-- exprAll' is much faster
 RUN hCut # (do f <- hToken # exprAll' 1; f "(2+5)*8")

@@ -171,8 +171,10 @@ parser = "\
   \              (do _ <- op token '('; do i <- exprAll' 1; do _ <- op token ')'; return i) \n\
   \ \n\
   \ \n\
-  \RUN hCut # (do f <- hToken # exprAll 1; f \"(2+5)*8\") \n\
+  \-- DO NOT RUN THIS! VERY SLOW! \n\
+  \-- RUN hCut # (do f <- hToken # exprAll 1; f \"(2+5)*8\") \n\
   \ \n\
+  \-- exprAll' is much faster \n\
   \RUN hCut # (do f <- hToken # exprAll' 1; f \"(2+5)*8\") \n\
   \"
 
