@@ -14,7 +14,7 @@ type Name = String
 
 -- | Command syntax
 data Command
-  = Def Name Value
+  = Def Name Value Bool -- ^ True : recursive
   | Run Comp
   deriving (Show, Eq)
 
@@ -29,11 +29,13 @@ data Value
   | Vbool Bool
   | Vint Int
   | Vchar Char
-  | Vstr String   -- ^ for simplicity, we separate lists and strings
+  --  | Vstr String   -- ^ for simplicity, we separate lists and strings
   | Vlist [Value]
   | Vsum (Either Value Value)
   | Vret Value | Vflag Value -- opened, closed
   | Vmem (Memory Value)
+  -- internal:
+  | Fix Value                                      -- ^ fix v
   deriving (Show, Eq)
 
 -- | Handler Clauses Syntax
@@ -74,6 +76,7 @@ data Comp
   | Do Name Comp Comp                              -- ^ do x <- c1; c2
   | App Value Value                                -- ^ v1 v2
   | Let Name Value Comp                            -- ^ let x = v in c
+  | LetRec Name Value Comp                         -- ^ letrec x = v in c
   -- syntactic sugars:
   | App' [Value]
   -- extensions:
@@ -91,12 +94,9 @@ data Comp
   | Head Value
   | Tail Value
   | Fst Value | Snd Value
-  | AppendS Value Value
-  | HeadS Value
-  | TailS Value
-  | ConsS Value Value
+  | Cons Value Value
   | Read Value
-  | ConcatMap Value Value
+  -- | ConcatMap Value Value
   | AppendCut Value Value
   | ConcatMapCutList Value Value
   | Close Value | Open Value
@@ -129,12 +129,16 @@ data VType
   | TCutList VType
   | TMem VType VType
   | TUnit
-  | TString
+  | TChar
+  --  | TString
   | TBool
   | TInt
   | TEmpty
   | TApp TypeOpt VType
   deriving (Show, Eq)
+
+tString :: VType
+tString = TList TChar
 
 data CType = CT VType EType
   deriving (Show, Eq)
@@ -198,12 +202,14 @@ class SubstEffectType a where
 instance SubstValueType TypeOpt where
   substVT (x, t) (TNil t') = TNil $ substVT (x, t) t'
   substVT (x, t) (TAbs y k t') | x == y = TAbs y k t'
-  substVT (x, t) (TAbs y k t') | x /= y = TAbs y k (substVT (x, t) t')
+  substVT (x, t) (TAbs y k t') | x /= y = TAbs  y k (substVT (x, t) t')
+  substVT _ _ = undefined
 
 instance SubstEffectType TypeOpt where
   substET (x, t) (TNil t') = TNil $ substET (x, t) t'
   substET (x, t) (TAbs y k t') | x == y = TAbs y k t'
   substET (x, t) (TAbs y k t') | x /= y = TAbs y k (substET (x, t) t')
+  substET _ _ = undefined
 
 instance SubstValueType VType where
   substVT (x, t) a = case a of
@@ -215,13 +221,13 @@ instance SubstValueType VType where
     TSum t1 t2 -> TSum (substVT (x, t) t1) (substVT (x, t) t2)
     TList ts -> TList (substVT (x, t) ts)
     TCutList ts -> TCutList (substVT (x, t) ts)
-    TString -> TString
+    TChar -> TChar
     TUnit -> TUnit
     TBool -> TBool
     TInt -> TInt
     TEmpty -> TEmpty
     THand t1 t2 -> error "Are you serious?"
-    -- oth -> error $ "substVT undefined for " ++ show oth
+    oth -> error $ "substVT undefined for " ++ show oth
 
 instance SubstEffectType VType where
   substET (x, t) a = case a of
@@ -232,13 +238,12 @@ instance SubstEffectType VType where
     TSum t1 t2 -> TSum (substET (x, t) t1) (substET (x, t) t2)
     TList ts -> TList (substET (x, t) ts)
     TCutList ts -> TCutList (substET (x, t) ts)
-    TString -> TString
     TUnit -> TUnit
     TBool -> TBool
     TInt -> TInt
     TEmpty -> TEmpty
     THand t1 t2 -> error "Are you serious?"
-    -- oth -> error $ "substET undefined for " ++ show oth
+    oth -> error $ "substET undefined for " ++ show oth
 
 instance SubstEffectType EType where
   substET (x, t) a = case a of
@@ -246,6 +251,7 @@ instance SubstEffectType EType where
     EVar y _ | x == y -> t
     EVar y b | x /= y -> EVar y b
     ECons l e -> ECons l (substET (x, t) e)
+    _ -> undefined
     -- non-exhaustive ??
 
 ----------------------------------------------------------------
@@ -302,11 +308,11 @@ builtInFunc1 =
 -- (name, constructor, is infix)
 builtInFunc2 :: [(String, Value -> Value -> Comp, Bool)]
 builtInFunc2 =
-  [ ("concatMap", ConcatMap, False)
-  , ("concatMapCutList", ConcatMapCutList, False)
+  [ ("concatMapCutList", ConcatMapCutList, False)
   , ("update", Update, False)
   , ("retrieve", Retrieve, False)
-  , ("append", AppendCut, False)
+  , ("appendCutList", AppendCut, False)
+  , ("cons", Cons, False)
   , ("++", Append, True)
   , ("+", Add, True)
   , ("-", Minus, True)
@@ -320,14 +326,16 @@ builtInFuncType :: Name -> SType
 builtInFuncType s = case s of
   "add" -> fmu s . Mono $ TPair TInt TInt <->> TInt <!> mu s
   "minus" -> fmu s . Mono $ TPair TInt TInt <->> TInt <!> mu s
+  "mul" -> fmu s . Mono $ TPair TInt TInt <->> TInt <!> mu s
   "eq" -> fa s . fmu s . Mono $ TPair (a s) (a s)  <->> TBool <!> mu s
   "lt" -> fa s . fmu s . Mono $ TPair (a s) (a s)  <->> TBool <!> mu s
   "fst" -> fa s . fb s . fmu s . Mono $ TPair (a s) (b s) <->> a s <!> mu s
   "snd" -> fa s . fb s . fmu s . Mono $ TPair (a s) (b s) <->> b s <!> mu s
   "head" -> fa s . fmu s . Mono $ TList (a s) <->> a s <!> mu s
+  "tail" -> fa s . fmu s . Mono $ TList (a s) <->> TList (a s) <!> mu s
+  "read" -> fmu s . Mono $ TList TChar <->> TInt <!> mu s
   "append" -> fa s . fmu s . Mono $ TPair (TList (a s)) (TList (a s)) <->> TList (a s) <!> mu s
-  "concatMap" -> fa s . fb s . fmu s . Mono $
-    TPair (TList (b s)) (b s <->> TList (a s) <!> mu s) <->> TList (a s) <!> mu s
+  "cons" -> fa s . fmu s . Mono $ TPair (a s) (TList (a s)) <->> TList (a s) <!> mu s
   "newmem" -> fa s . fb s . fmu s . Mono $ TUnit <->> TMem (a s) (b s) <!> mu s
   "retrieve" -> fa s . fb s . fmu s . Mono $ TPair (a s) (TMem (a s) (b s)) <->> b s <!> mu s
   "update" -> fa s . fb s . fmu s . Mono $
@@ -349,6 +357,17 @@ builtInFuncType s = case s of
 ----------------------------------------------------------------
 -- Utilities
 
+cs2str :: [Value] -> String
+cs2str = map (\ (Vchar c) -> c)
+
+-- lchar2str :: Value -> Value
+-- lchar2str (Vlist vs) = Vstr $ map (\ (Vchar c) -> c) vs
+-- lchar2str _ = undefined
+
+-- str2lchar :: Value -> Value
+-- str2lchar (Vstr s) = Vlist $ map Vchar s
+-- str2lchar _ = undefined
+
 appendEff :: [Name] -> EType -> EType
 appendEff [] e = e
 appendEff ls e = appendEff (init ls) (ECons (last ls) e)
@@ -357,9 +376,11 @@ cmds2comps :: [Command] -> [Comp]
 cmds2comps cmds =
     let defs = filter isDef cmds
     in let runs = filter isRun cmds
-    in map (\ (Run main) -> foldr (\(Def x v) c -> Let x v c) main defs) runs
+    in map (\ (Run main) -> foldr f main defs) runs
   where
-    isDef (Def _ _) = True
+    f (Def x v b) c = if b then LetRec x v c else Let x v c
+    f (Run _) _ = error "impossible"
+    isDef Def {} = True
     isDef _ = False
     isRun (Run _) = True
     isRun _ = False

@@ -23,16 +23,36 @@ sigma =
   [ ("choose", (TUnit, TBool))
   , ("fail", (TUnit, TEmpty))
   , ("once", (TUnit, TUnit))
-  , ("raise", (TString, TEmpty))
-  , ("catch", (TString, TBool))
+  , ("raise", (tString, TEmpty))
+  , ("catch", (tString, TBool))
   , ("inc", (TUnit, TInt))
-  , ("get", (TString, TInt))
-  , ("put", (TPair TString TInt, TUnit))
-  , ("local", (TPair TString TInt, TUnit))
+  , ("get", (tString, TInt))
+  , ("put", (TPair tString TInt, TUnit))
+  , ("local", (TPair tString TInt, TUnit))
   , ("cut", (TUnit, TUnit))
   , ("call", (TUnit, TUnit))
   , ("depth", (TInt, TUnit))
+  , ("token", (TChar, TChar))
   ]
+
+isOp :: Name -> Bool
+isOp "token"  = True
+isOp "depth"  = False
+isOp "call"   = False
+isOp "cut"    = True
+isOp "local"  = False
+isOp "put"    = True
+isOp "get"    = True
+isOp "inc"    = True
+isOp "catch"  = False
+isOp "raise"  = True
+isOp "once"   = False
+isOp "fail"   = True
+isOp "choose" = True
+isOp _ = undefined
+
+isSc :: Name -> Bool
+isSc = not . isOp
 
 emptyctx :: Context
 emptyctx = []

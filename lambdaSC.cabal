@@ -25,6 +25,18 @@ source-repository head
   location: https://github.com/githubuser/lambdaSC
 
 library
+<<<<<<< HEAD
+=======
+  exposed-modules:
+      Context
+      Evaluation
+      Lexer
+      Parser
+      PrettyPrinter
+      Substitution
+      Syntax
+      TypeInference
+>>>>>>> main
   other-modules:
       Paths_lambdaSC
   hs-source-dirs:

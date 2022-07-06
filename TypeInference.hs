@@ -200,7 +200,7 @@ inferV (Lam x c) = do
 inferV Vunit = return (TUnit, M.empty)
 inferV (Vbool _) = return (TBool, M.empty)
 inferV (Vint _) = return (TInt, M.empty)
-inferV (Vstr _) = return (TString, M.empty)
+inferV (Vchar _) = return (TChar, M.empty)
 inferV (Vpair (v1, v2)) = do
   (a1, theta1) <- inferV v1
   ctx <- get
@@ -326,6 +326,7 @@ inferEmp m = do
 inferOp :: TypeOpt -> [(Name, (Name, Name, Comp))] -> W (CType, Theta)
 inferOp m [] = inferEmp m
 inferOp m ((l, (x, k, c)) : ops) = do
+  when (isSc l) . throwError $ "inferOp : " ++ l ++ " is not an algebraic operation"
   (_, (al, bl)) <- name2entry sigma l
   (uD, theta1) <- inferOp m ops
   let CT (TApp m' a) e = uD -- if not, an error will be throwed
@@ -345,6 +346,7 @@ inferOp m ((l, (x, k, c)) : ops) = do
 inferSc :: TypeOpt -> [(Name, (Name, Name, Name, Comp))] -> W (CType, Theta)
 inferSc m [] = inferEmp m
 inferSc m ((l, (x, p, k, c)) : scs) = do
+  when (isOp l) . throwError $ "inferSc : " ++ l ++ " is not a scoped operation"
   (_, (al, bl)) <- name2entry sigma l
   beta <- freshTV -- fresh value type variable
   (uD, theta1) <- inferSc m scs
@@ -434,6 +436,17 @@ inferC (Let x v c) = do
   (uC, theta2) <- inferC c
   put ctx
   return (uC, theta2 <^> theta1)
+inferC (LetRec x v c) = do
+  alpha <- freshV
+  ctx <- get
+  put $ addBinding ctx (x, TypeBind $ Mono alpha)
+  (a, theta1) <- inferV v
+  theta2 <- unify (theta1 <@> alpha) a
+  sigma <- gen (theta2 <^> theta1) (theta2 <@> a)
+  put $ addBinding (theta2 <^> theta1 <@> ctx) (x, TypeBind sigma)
+  (uC, theta3) <- inferC c
+  put ctx
+  return (uC, theta3 <^> theta2 <^> theta1)
 inferC (Return v) = do
   (a, theta) <- inferV v
   mu <- freshE
@@ -488,6 +501,7 @@ inferC (Absurd v) = do
 
 
 inferC (Op l v (y :. c)) = do
+  when (isSc l) . throwError $ "inferOp : " ++ l ++ " is not an algebraic operation"
   (_, (al, bl)) <- name2entry sigma l
   (a, theta1) <- inferV v
   theta2 <- unify al a
@@ -501,6 +515,7 @@ inferC (Op l v (y :. c)) = do
   return (theta4 <@> a' <!> e, theta4 <^> theta3 <^> theta2 <^> theta1)
 
 inferC (Sc l v (y :. c1) (z :. c2)) = do
+  when (isOp l) . throwError $ "inferOp : " ++ l ++ " is not a scoped operation"
   (_, (al, bl)) <- name2entry sigma l
   (a, theta1) <- inferV v
   theta2 <- unify al a
@@ -527,14 +542,18 @@ inferC (Sc l v (y :. c1) (z :. c2)) = do
 --   return (CT (apply theta2 alpha1) mu, theta2 <^> theta1)
 inferC (Add v1 v2) = inferFunc2 "add" v1 v2
 inferC (Minus v1 v2) = inferFunc2 "minus" v1 v2
+inferC (Mul v1 v2) = inferFunc2 "mul" v1 v2
 inferC (Eq v1 v2) = inferFunc2 "eq" v1 v2
 inferC (Lt v1 v2) = inferFunc2 "lt" v1 v2
 inferC (Fst v) = inferFunc1 "fst" v
 inferC (Snd v) = inferFunc1 "snd" v
 inferC (Head v) = inferFunc1 "head" v
+inferC (Tail v) = inferFunc1 "tail" v
+inferC (Read v) = inferFunc1 "read" v
+inferC (Cons v1 v2) = inferFunc2 "cons" v1 v2
 inferC (Append v1 v2) = inferFunc2 "append" v1 v2
 inferC (AppendCut v1 v2) = inferFunc2 "appendCut" v1 v2
-inferC (ConcatMap v1 v2) = inferFunc2 "concatMap" v1 v2
+-- inferC (ConcatMap v1 v2) = inferFunc2 "concatMap" v1 v2
 inferC (ConcatMapCutList v1 v2) = inferFunc2 "concatMapCutList" v1 v2
 inferC (Newmem v) = inferFunc1 "newmem" v
 inferC (Update v1 v2) = inferFunc2 "update" v1 v2
@@ -574,3 +593,40 @@ specialTApp sigma v2 = do
   mu <- freshE
   theta3 <- unify (theta2 <@> a1) (TArr a2 (CT alpha mu))
   return (apply theta3 (CT alpha mu), theta3 <^> theta2)
+
+----------------------------------------------------------------
+
+inferCmd :: Command -> W (Either SType CType, Theta)
+inferCmd (Def x v False) = do
+  (a, theta) <- inferV v
+  sigma <- gen theta a
+  return (Left sigma, theta)
+inferCmd (Def x v True) = do
+  alpha <- freshV
+  ctx <- get
+  put $ addBinding ctx (x, TypeBind $ Mono alpha)
+  (a, theta1) <- inferV v
+  theta2 <- unify (theta1 <@> alpha) a
+  sigma <- gen (theta2 <^> theta1) (theta2 <@> a)
+  put ctx
+  return (Left sigma, theta2 <^> theta1)
+inferCmd (Run c) = do
+  (a, theta) <- inferC c
+  return (Right a, theta)
+
+inferCmds :: [Command] -> W [Either SType CType]
+inferCmds [] = return []
+inferCmds (Def x v b : cs) = do
+  (t, theta) <- inferCmd (Def x v b)
+  case t of
+    Left sigma -> do
+      ctx <- get
+      let nctx = addBinding (map (apply2bind theta) ctx) (x, TypeBind sigma)
+      put nctx
+    Right _ -> throwError "[IMPOSSIBLE] expect a type scheme"
+  ts <- inferCmds cs
+  return $ t : ts
+inferCmds (Run c : cs) = do
+  (t, _) <- inferCmd (Run c)
+  ts <- inferCmds cs
+  return $ t : ts

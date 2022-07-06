@@ -22,14 +22,17 @@ instance MyPrinter Value where
     Vbool b -> if b then "true" else "false"
     Vint n -> show n
     Vchar c -> show c
-    Vstr s -> "\"" ++ s ++ "\""
-    Vlist vs -> "[" ++ drop 2 (foldl (\s v -> s ++ ", " ++ printt v) "" vs) ++ "]"
+    Vlist vs -> if vs /= [] then case head vs of
+      Vchar _ -> "\"" ++ map (\(Vchar c) -> c) vs ++ "\""
+      _ -> "[" ++ drop 2 (foldl (\s v -> s ++ ", " ++ printt v) "" vs) ++ "]"
+      else "[]"
     Vsum e -> case e of Left x -> "left " ++ printt x
                         Right x -> "right " ++ printt x
     Vret v -> "opened " ++ printt v
     Vflag v -> "closed " ++ printt v
     Vmem v -> "mem " ++ show v
-  -- _ -> undefined 
+    Fix v -> "Fix " ++ printt v
+    -- _ -> "NOT SUPPORTED: " ++ show v
 
 -- ideally, we only need "return"
 instance MyPrinter Comp where
@@ -52,18 +55,22 @@ instance MyPrinter Comp where
     Eq v1 v2 -> printt v1 ++ " = " ++ printt v2
     Lt v1 v2 -> printt v1 ++ " > " ++ printt v2
     Add v1 v2 -> printt v1 ++ " + " ++ printt v2
+    Mul v1 v2 -> printt v1 ++ " * " ++ printt v2
     Append v1 v2 -> printt v1 ++ " ++ " ++ printt v2
-    ConcatMap v1 v2 -> "concatMap " ++ printt v1 ++ " " ++ printt v2
+    AppendCut v1 v2 -> "append " ++ printt v1 ++ " " ++ printt v2
+    -- ConcatMap v1 v2 -> "concatMap " ++ printt v1 ++ " " ++ printt v2
     Retrieve v1 v2 -> "retrieve " ++ printt v1 ++ " " ++ printt v2
     Update v1 v2 -> "update " ++ printt v1 ++ " " ++ printt v2
     Head v -> "head " ++ printt v
     Fst v -> "fst " ++ printt v
     Snd v -> "snd " ++ printt v
-    _ -> undefined 
+    Cons v vs -> "cons " ++ printt v ++ " " ++ printt vs
+    Read v -> "read (" ++ printt v ++ ")"
+    _ -> error $ "NOT SUPPORTED: " ++ show c
   
 
 instance MyPrinter Handler where
-  printt h = "I don't want to print a handler :)"
+  printt h = "{handler " ++ show (oplist h) ++ show (sclist h) ++ "}"
 
 class MyTypePrinter a where
   printy :: a -> State (M.Map String String, [String]) String
@@ -106,7 +113,7 @@ instance MyTypePrinter VType where
       s <- printy t
       return $ "CutList " ++ s
     TUnit -> return "Unit"
-    TString -> return "String"
+    TChar -> return "Char"
     TBool -> return "Bool"
     TInt -> return "Int"
     TEmpty -> return "Empty"
@@ -125,7 +132,7 @@ instance MyTypePrinter EType where
     ECons l t -> do
       let (ls, t') = getAllLabels (ECons l t)
       case t' of
-        (EVar x _) -> do s <- printy t'; return $ "<" ++ printLabels ls ++ "; " ++ s ++ ">"
+        (EVar x _) -> do s <- printy t'; return $ "<" ++ printLabels ls ++ " | " ++ s ++ ">"
         EEmpty -> return $ "<" ++ printLabels ls ++ ">"
         _ -> error "impossible"
       -- s <- printy t

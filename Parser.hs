@@ -33,7 +33,7 @@ sourcePos = statePos `liftM` getParserState
 parseCmds :: Parser [Command]
 parseCmds = do
     ctx <- getState
-    cmds <- whiteSpace >> many (parseDef <|> parseRun)
+    cmds <- whiteSpace >> many (parseDef <|> parseRec <|> parseRun)
     setState ctx
     return cmds
 
@@ -45,13 +45,24 @@ parseDef = do
   v <- parseValue
   ctx <- getState
   setState $ addBinding ctx (x, NameBind)
-  return $ Def x v
+  return $ Def x v False
+
+parseRec :: Parser Command
+parseRec = do
+  reserved "REC"
+  x <- identifier
+  ctx <- getState
+  setState $ addBinding ctx (x, NameBind)
+  reservedOp "="
+  v <- parseValue
+  return $ Def x v True
 
 parseRun :: Parser Command
 parseRun = do
   reserved "RUN"
   c <- parseComp
   return $ Run c
+
 ----------------------------------------------------------------
 -- * Value Parser
 
@@ -120,7 +131,8 @@ parseChar :: Parser Value
 parseChar = charLiteral >>= return . Vchar
 
 parseString :: Parser Value
-parseString = stringLiteral >>= return . Vstr
+-- parseString = stringLiteral >>= return . Vstr
+parseString = stringLiteral >>= return . Vlist . map Vchar
 
 parseList :: Parser Value
 parseList = brackets $ commaSep parseValue >>= return . Vlist
@@ -142,11 +154,13 @@ parseComp :: Parser Comp
 parseComp = (whiteSpace >>) . choice $
   [ parseRet
   , parseLet
+  , parseLetRec
   , parseOp
   , parseSc
   , parseDo
   , parseIf
   , parseCase
+  , parseOr
   ]
   ++ map getFunc1Parser builtInFunc1
   ++ map getFunc2Parser builtInFunc2
@@ -197,6 +211,19 @@ parseLet = do
   c <- parseComp
   setState ctx
   return $ Let x v c
+
+parseLetRec :: Parser Comp
+parseLetRec = do
+  reserved "letrec"
+  x <- identifier
+  ctx <- getState
+  setState $ addBinding ctx (x, NameBind) -- different from let
+  reservedOp "="
+  v <- parseValue
+  reserved "in"
+  c <- parseComp
+  setState ctx
+  return $ LetRec x v c
 
 parseOp :: Parser Comp
 parseOp = do
@@ -293,22 +320,22 @@ getFunc2Parser (name, cons, b) = if b
 -- ad-hoc parsers for the parser example
 parseOr :: Parser Comp
 parseOr = try $ do
+  reserved "or";
   c1 <- parseComp;
-  reservedOp "<>";
   c2 <- parseComp;
   return $ cor c1 c2
 
-parseMany1 :: Parser Comp
-parseMany1 = do
-  reserved "many1"
-  v <- parseValue
-  return $ cmany1 v
+-- parseMany1 :: Parser Comp
+-- parseMany1 = do
+--   reserved "many1"
+--   v <- parseValue
+--   return $ cmany1 v
 
-cmany1 :: Value -> Comp
-cmany1 p = Do "a" (App p Vunit) $
-           Do "as" (cor (cmany1 p) (Return (Vstr ""))) $
-           Do "x" (ConsS (Var "a" 1) (Var "as" 0)) $
-           Return (Var "x" 0)
+-- cmany1 :: Value -> Comp
+-- cmany1 p = Do "a" (App p Vunit) $
+--            Do "as" (cor (cmany1 p) (Return (Vstr ""))) $
+--            Do "x" (ConsS (Var "a" 1) (Var "as" 0)) $
+--            Return (Var "x" 0)
 
 cor :: Comp -> Comp -> Comp
 cor x y = Op "choose" Vunit ("b" :. If (Var "b" 0) (shiftC 1 x) (shiftC 1 y))
@@ -415,6 +442,7 @@ parseVType = (whiteSpace >>) $ choice
   , parseTBool
   , parseTEmpty
   , parseTString
+  , parseTChar
   , try parseTPair
   , parseTList
   , parseTCutList
@@ -442,7 +470,10 @@ parseTBool :: Parser VType
 parseTBool = reserved "Bool" >> return TBool
 
 parseTString :: Parser VType
-parseTString = reserved "String" >> return TString
+parseTString = reserved "String" >> return (TList TChar)
+
+parseTChar :: Parser VType
+parseTChar = reserved "Char" >> return TChar
 
 parseTEmpty :: Parser VType
 parseTEmpty = reserved "Empty" >> return TEmpty

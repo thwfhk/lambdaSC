@@ -31,42 +31,13 @@ runParseClauses = runParserT parseClauses emptyctx "CandyQwQ"
 runParseCmds :: String -> String -> Except Err (Either ParseError [Command])
 runParseCmds = runParserT parseCmds emptyctx
 
-inferCmd :: Command -> W (Either SType CType, Theta)
-inferCmd (Def x v) = do
-  (a, theta) <- inferV v
-  sigma <- gen theta a
-  return (Left sigma, theta)
-inferCmd (Run c) = do
-  (a, theta) <- inferC c
-  return (Right a, theta)
-
-inferCmds :: [Command] -> W [Either SType CType]
-inferCmds [] = return []
-inferCmds (Def x v : cs) = do
-  (t, theta) <- inferCmd (Def x v)
-  case t of
-    Left sigma -> do
-      ctx <- get
-      let nctx = addBinding (map (apply2bind theta) ctx) (x, TypeBind sigma)
-      put nctx
-    Right _ -> throwError "[IMPOSSIBLE] expect a type scheme"
-  ts <- inferCmds cs
-  return $ t : ts
-inferCmds (Run c : cs) = do
-  (t, _) <- inferCmd (Run c)
-  ts <- inferCmds cs
-  return $ t : ts
-
-isDef (Def _ _) = True
-isDef _ = False
-
 alphabets = map (:[]) ['a'..'z']
 
 runFile :: IO ()
 runFile = do
   args <- getArgs
   case args of
-    [sourceFileName, dstFileName] -> do
+    [sourceFileName] -> do
       sourceFile <- readFile sourceFileName
       case runExcept (runParseCmds sourceFileName sourceFile) of
         Left err -> putStrLn $ "[PARSE FAILED 😵]: " ++ show err
@@ -81,19 +52,21 @@ runFile = do
             case ts of
               Left err -> putStrLn $ "[TYPE INFERENCE FAILED 😵]: " ++ show err
               Right ts -> do putStrLn "[TYPE INFERENCE SUCCESS 🥳]: "
-                             let names = (\ x -> case x of Def s _ -> s
+                             let names = (\ x -> case x of Def s _ _ -> s
                                                            Run _ -> "") <$> cmds
                              mapM (\(n, t) -> putStrLn $ "  " ++
                                           (if n /= "" then n ++ " : " else "") ++
                                           evalState (printy t) (M.empty, alphabets)) $ zip names ts;
                              return ()
             let cs = cmds2comps cmds
-            --  putStrLn (show cs)
             putStrLn "[EVALUATION RESULTS 🥳]:"
-            --  mapM (\ c -> putStrLn $ "  " ++ show (eval c)) cs
-            mapM (\ c -> putStrLn $ " " ++ dropWhile (/= ' ') (printt (eval c))) cs
+            -- mapM (\ c -> putStrLn $ show c ++ " ||| " ++ show (eval c)) cs
+            mapM (\ c -> putStrLn $ " " ++ removeReturn (printt (eval c))) cs
             return ()
-    _ -> putStrLn "file names error, enter REPL" >> repl
+    _ -> putStrLn "file name error, enter REPL" >> repl
+
+removeReturn :: String -> String
+removeReturn s = if take 6 s == "return" then drop 7 s else s
 
 repl :: IO ()
 repl = do
