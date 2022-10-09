@@ -34,7 +34,7 @@ DEF incr2 = \ _ .
 
 -- hCatch' is not well-typed, but shows the idea of modelling catch using
 -- a handler
--- DEF hCatch' = handler [\ x . x]
+-- DEF hCatch = handler [\ x . x]
 --  { return x     |-> return x
 --  , op raise e k |-> return unit
 --  , fwd f p k    |-> return unit
@@ -57,4 +57,4 @@ RUN do f <- hInc # (hExcept # (
 )); f 9
 
 -- global update semantics via scoped-effects-as-handlers
--- RUN do f <- hInc # (hCatch' # incr2 unit); f 9
+-- RUN do f <- hInc # (hCatch # incr2 unit); f 9
