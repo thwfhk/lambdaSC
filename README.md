@@ -58,15 +58,15 @@ There are three main directories:
   - `intro.sc` : an introduction file to the syntax (the syntax supported by the interpreter is slightly different from the paper)
   - `once.sc` : nondeterminism with `Once` (paper Section 3 and 5)
   - `catch.sc` : exceptions (paper Section 7.1)
-  - `local.sc` : local state (paper Section 7.2)
+  - `localread.sc` : reader with local (paper Section 7.2)
   - `cut.sc` :  nondeterminism with `Cut` (paper Section 7.3)
-  - `depth.sc` : depth-Bounded Search (paper Section 7.5)
-  - `parser.sc` : parser (paper Section 7.6)
-  - `examples.sc` : collection of all examples in one file
+  - `depth.sc` : depth-Bounded Search (paper Section 7.4)
+  - `parser.sc` : parser (paper Section 7.5)
+  - `local.sc` : local state (bonus)
 
 ## Evaluating the Artifact
 
 We propose to evaluate the artifact by running `stack exec
 lambdaSC-exe inputFileName` and replacing `inputFileName` with each
-file name in the `test` directory. This will show the results of
-almost all the examples appearing in the paper.
+file name in the `test` directory. This will show the results of all
+the examples relevant to scoped effects appearing in the paper.

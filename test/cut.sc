@@ -4,7 +4,7 @@ DEF hCut = handler [\ x . CutList x]
   ,  op choose _ k |->  do xs <- k true; do ys <- k false; appendCutList xs ys
   ,  op cut _ k    |->  do ts <- k unit; close ts
   ,  sc call _ p k |->  do ts <- p unit; do ts' <- open ts; concatMapCutList ts' k
-  , fwd f p k |-> f (p, \ z . concatMapCutList z k)
+  ,  fwd f p k |-> f (p, \ z . concatMapCutList z k)
   }
 
 ----------------------------------------------------------------
