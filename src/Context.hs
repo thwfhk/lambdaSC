@@ -27,6 +27,8 @@ sigma =
   , ("catch", (tString, TBool))
   , ("inc", (TUnit, TInt))
   , ("get", (tString, TInt))
+  , ("ask", (TUnit, TInt))
+  , ("lread", (TUnit, TUnit))
   , ("put", (TPair tString TInt, TUnit))
   , ("local", (TPair tString TInt, TUnit))
   , ("cut", (TUnit, TUnit))
@@ -49,6 +51,9 @@ isOp "raise"  = True
 isOp "once"   = False
 isOp "fail"   = True
 isOp "choose" = True
+isOp "ask"    = True
+isOp "foo"    = True
+isOp "lread"  = False
 isOp _ = undefined
 
 isSc :: Name -> Bool

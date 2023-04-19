@@ -1,6 +1,6 @@
 DEF hInc = handler [\ x . Arr Int ((x, Int) ! mu)]
   { return x   |-> return (\ s . return (x, s))
-  , op inc _ k |-> return (\ s . do s1 <- (s + 1); k s s1)
+  , op inc _ k |-> return (\ s . do s1 <- (s + 1); k s1 s1)
   , fwd f p k  |-> return (\ s . f (
       \ y . p y s ,
       \ zs . do z <- fst zs; do s' <- snd zs; k z s'
@@ -25,10 +25,28 @@ DEF hOnce = handler [\ x . List x]
   , fwd f p k |-> f (p, \ z . concatMap z k)
   }
 
+DEF hND = handler [\ x . List x]
+  { return x      |-> return [x]
+  , op choose _ k |-> do xs <- k true; do ys <- k false ; xs ++ ys
+  , fwd f p k |-> f (p, \ z . concatMap z k)
+  }
+
 ----------------------------------------------------------------
 
-RUN do f <- hInc # (op inc unit); f 0
+-- Examples from Section 5 (also appearing in Section 2 and Section 3)
+RUN hND # op choose unit (b . if b then return 1 else return 2)
 
+RUN hND # (do f <- hInc # (
+  op choose unit (b . if b then op inc unit (x . x+5)
+                           else op inc unit (y . y+2))
+); f 0)
+
+RUN hOnce #
+  sc once unit (_ . op choose unit)
+               (p . do q <- op choose unit; return (p, q))
+
+
+-- Interaction of inc and once:
 RUN hOnce # (do f <- hInc # (
   op choose unit (b . if b then op inc unit else op inc unit)
 ); f 0)
@@ -42,8 +60,3 @@ RUN hOnce # (do f <- hInc # (
     (_ . op choose unit (b . if b then op inc unit else op inc unit ))
     (x . op inc unit (y . x + y))
 ); f 0)
-
-RUN hOnce #
-  sc once unit (_ . op choose unit)
-               (b . if b then return "heads" else return "tails")
-

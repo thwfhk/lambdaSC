@@ -30,31 +30,22 @@ DEF incr = \ _ .
        else return x
 
 DEF incr2 = \ _ .
-  do _ <- incr unit; do _ <- incr unit; return unit
-
--- hCatch' is not well-typed, but shows the idea of modelling catch using
--- a handler
--- DEF hCatch = handler [\ x . x]
---  { return x     |-> return x
---  , op raise e k |-> return unit
---  , fwd f p k    |-> return unit
---  }
+  do _ <- incr unit; do _ <- incr unit; return "success"
 ----------------------------------------------------------------
 
 -- trivial exception and catching
 RUN hExcept #
-  sc catch "SAR" (b . if b then op raise "SAR" (y . absurd y)
-                      else return "SAR is caught!")
+  sc catch "Err" (b . if b then op raise "Err" (y . absurd y)
+                      else return "Err is caught!")
 
 -- local update semantics
 RUN hExcept # (do f <- hInc # (
-  sc catch "Overflow" (b . if b then incr2 unit else return unit)
-); f 9)
+  do _ <- incr unit;
+  sc catch "Overflow" (b . if b then incr2 unit else return "fail")
+); f 8)
 
 -- global update semantics
 RUN do f <- hInc # (hExcept # (
-  sc catch "Overflow" (b . if b then incr2 unit else return unit)
-)); f 9
-
--- global update semantics via scoped-effects-as-handlers
--- RUN do f <- hInc # (hCatch # incr2 unit); f 9
+  do _ <- incr unit;
+  sc catch "Overflow" (b . if b then incr2 unit else return "fail")
+)); f 8
