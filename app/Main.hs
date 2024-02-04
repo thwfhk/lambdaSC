@@ -59,9 +59,14 @@ runFile = do
                                           evalState (printy t) (M.empty, alphabets)) $ zip names ts;
                              return ()
             let cs = cmds2comps cmds
-            putStrLn "[EVALUATION RESULTS 🥳]:"
+            putStrLn "[EVALUATING PROCESS]:"
             -- mapM (\ c -> putStrLn $ show c ++ " ||| " ++ show (eval c)) cs
-            mapM (\ c -> putStrLn $ " " ++ removeReturn (printt (eval c))) cs
+            mapM (\ c -> do
+                putStrLn $ "      " ++ printt c
+                let ds = evals c
+                mapM (\ d -> putStrLn $ "  ~>  " ++ printt d) ds
+                putStrLn $ "  🥳  " ++ removeReturn (printt (eval c))
+              ) cs
             return ()
     _ -> putStrLn "file name error, enter REPL" >> repl
 

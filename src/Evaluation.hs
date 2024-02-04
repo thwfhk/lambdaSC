@@ -11,6 +11,14 @@ eval c = case eval1 c of
   Just c' -> eval c'
   Nothing -> c
 
+evals :: Comp -> [Comp]
+evals c = go c []
+  where
+    go :: Comp -> [Comp] -> [Comp]
+    go c cs = case eval1 c of
+      Just c' -> go c' (cs ++ [c'])
+      Nothing -> cs
+
 -- | Single step evaluation
 eval1 :: Comp -> Maybe Comp
 -- App' is impossible

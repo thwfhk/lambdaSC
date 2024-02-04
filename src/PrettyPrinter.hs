@@ -47,6 +47,7 @@ instance MyPrinter Comp where
     Do x c1 c2 -> "do " ++ x ++ " <- " ++ printt c1 ++ "; " ++ printt c2
     App v1 v2 -> printt v1 ++ " " ++ printt v2
     Let x v c -> "let " ++ x ++ " = " ++ printt v ++ " in " ++ printt c
+    LetRec x v c -> "letrec " ++ x ++ " = " ++ printt v ++ " in " ++ printt c
     App' _ -> error "App' is impossible"
     If v c1 c2 -> "if " ++ printt v ++ " then " ++ printt c1 ++ " else " ++ printt c2
     Case v x c1 y c2 -> "case " ++ printt v ++ " of "
@@ -62,12 +63,13 @@ instance MyPrinter Comp where
     Retrieve v1 v2 -> "retrieve " ++ printt v1 ++ " " ++ printt v2
     Update v1 v2 -> "update " ++ printt v1 ++ " " ++ printt v2
     Head v -> "head " ++ printt v
+    Tail v -> "tail " ++ printt v
     Fst v -> "fst " ++ printt v
     Snd v -> "snd " ++ printt v
     Cons v vs -> "cons " ++ printt v ++ " " ++ printt vs
     Read v -> "read (" ++ printt v ++ ")"
     _ -> error $ "NOT SUPPORTED: " ++ show c
-  
+
 
 instance MyPrinter Handler where
   printt h = "{handler " ++ show (oplist h) ++ show (sclist h) ++ "}"
