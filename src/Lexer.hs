@@ -74,6 +74,7 @@ langDef = emptyDef
             , "appendCutList"
             , "open"
             , "close"
+            , "isclose"
             , "opened"
             , "closed"
             , "fst"

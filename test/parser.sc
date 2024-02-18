@@ -1,7 +1,9 @@
 DEF hCut = handler [\ x . CutList x]
   {  return x      |->  return (opened [x])
   ,  op fail _ _   |->  return (opened [])
-  ,  op choose _ k |->  do xs <- k true; do ys <- k false; appendCutList xs ys
+  -- ,  op choose _ k |->  do xs <- k true; do ys <- k false; appendCutList xs ys
+  ,  op choose x k |->  do xs <- k true; do b <- isclose xs;
+                           if b then return xs else do ys <- k false; appendCutList xs ys
   ,  op cut _ k    |->  do ts <- k unit; close ts
   ,  sc call _ p k |->  do ts <- p unit; do ts' <- open ts; concatMapCutList ts' k
   ,  fwd f p k |-> f (p, \ z . concatMapCutList z k)
@@ -55,12 +57,13 @@ REC exprAll' = \ index .
              sc call unit (_ . or (do _ <- op token '+'; do _ <- op cut unit; do j <- exprAll' 1; i+j)
                                   (return i))
      else do b <- index == 2; if b then
-          or  (do i <- exprAll' 3; do _ <- op token '*'; do j <- exprAll' 2; i*j)
-              (exprAll' 3)
+          do i <- exprAll' 3;
+             sc call unit (_ . or (do _ <- op token '*'; do _ <- op cut unit; do j <- exprAll' 2; i*j)
+                                  (return i))
      else or  (do ds <- many1 digit; read ds)
               (do _ <- op token '('; do i <- exprAll' 1; do _ <- op token ')'; return i)
 
 
-RUN hCut # (do f <- hToken # exprAll 1; f "(2+5)*8")
+-- RUN hCut # (do f <- hToken # exprAll 1; f "(2+5)*8")
 
 RUN hCut # (do f <- hToken # exprAll' 1; f "(2+5)*8")

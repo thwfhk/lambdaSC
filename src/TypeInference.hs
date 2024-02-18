@@ -560,6 +560,7 @@ inferC (Update v1 v2) = inferFunc2 "update" v1 v2
 inferC (Retrieve v1 v2) = inferFunc2 "retrieve" v1 v2
 inferC (Open v) = inferFunc1 "open" v
 inferC (Close v) = inferFunc1 "close" v
+inferC (IsClose v) = inferFunc1 "isclose" v
 
 inferC oth = error $ "inferC undefined for " ++ show oth
 

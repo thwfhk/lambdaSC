@@ -99,7 +99,7 @@ data Comp
   -- | ConcatMap Value Value
   | AppendCut Value Value
   | ConcatMapCutList Value Value
-  | Close Value | Open Value
+  | Close Value | Open Value | IsClose Value
   | Retrieve Value Value
   | Update Value Value
   | Newmem Value
@@ -302,6 +302,7 @@ builtInFunc1 =
   , ("newmem", Newmem)
   , ("open", Open)
   , ("close", Close)
+  , ("isclose", IsClose)
   , ("read", Read)
   ]
 
@@ -340,6 +341,7 @@ builtInFuncType s = case s of
   "retrieve" -> fa s . fb s . fmu s . Mono $ TPair (a s) (TMem (a s) (b s)) <->> b s <!> mu s
   "update" -> fa s . fb s . fmu s . Mono $
       TPair (TPair (a s) (b s)) (TMem (a s) (b s)) <->> TMem (a s) (b s) <!> mu s
+  "isclose" -> fa s . fmu s . Mono $ TCutList (a s) <->> TBool <!> mu s
   "close" -> fa s . fmu s . Mono $ TCutList (a s) <->> TCutList (a s) <!> mu s
   "open" -> fa s . fmu s . Mono $ TCutList (a s) <->> TCutList (a s) <!> mu s
   "appendCut" -> fa s . fmu s . Mono $ TPair (TCutList (a s)) (TCutList (a s)) <->> TCutList (a s) <!> mu s

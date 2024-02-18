@@ -94,6 +94,8 @@ eval1 (ConcatMapCutList (Vflag (Vlist xs)) f) = return $ case xs of
   (x:xs) -> Do "as" (App f x) $
             Do "as'" (ConcatMapCutList (shiftV 1 $ Vflag (Vlist xs)) (shiftV 1 f)) $
             AppendCut (Var "as" 1) (Var "as'" 0)
+eval1 (IsClose (Vret (Vlist xs)))  = return . Return $ Vbool False
+eval1 (IsClose (Vflag (Vlist xs))) = return . Return $ Vbool True
 eval1 (Close (Vret (Vlist xs)))  = return . Return . Vflag . Vlist $ xs
 eval1 (Close (Vflag (Vlist xs))) = return . Return . Vflag . Vlist $ xs
 eval1 (Open  (Vret (Vlist xs)))  = return . Return . Vret  . Vlist $ xs
@@ -143,6 +145,7 @@ mapC fc fv c = case c of
   Update v1 v2 -> Update (fv v1) (fv v2)
   ConcatMapCutList v1 v2 -> ConcatMapCutList (fv v1) (fv v2)
   Close v -> Close (fv v)
+  IsClose v -> IsClose (fv v)
   Open v -> Open (fv v)
   Newmem v -> Newmem (fv v)
   Absurd v -> Absurd (fv v)
