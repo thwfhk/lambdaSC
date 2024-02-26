@@ -28,7 +28,10 @@ sigma =
   , ("inc", (TUnit, TInt))
   , ("get", (tString, TInt))
   , ("ask", (TUnit, TInt))
-  , ("lread", (TUnit, TUnit))
+  , ("foo", (TUnit, TInt))
+  , ("lread", (TArr TInt (CT TInt (EVar "mu" True)), TUnit))
+    -- lambda_sc does not support real polymorphic operations
+    -- I hack here by restricting the variable name to be mu
   , ("put", (TPair tString TInt, TUnit))
   , ("local", (TPair tString TInt, TUnit))
   , ("cut", (TUnit, TUnit))

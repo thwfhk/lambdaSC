@@ -25,7 +25,7 @@ DEF cCatchX = \ _ .
   } # (do _ <- incr unit; do _ <- incr unit; return "success")
 
 ----------------------------------------------------------------
--- ## Catch as a scoped operation
+-- ## Catch as a scoped effect
 
 -- auxiliary function
 DEF exceptMap = \ z . return (
@@ -67,14 +67,18 @@ DEF cCatch = \ _ .
 
 -- global update semantics
 RUN do f <- hInc # (hExceptX # cCatchX   unit); f 8
+-- output:  (right "fail", 11)
 
 -- expect local update semantics but get global update semantics
 RUN hExceptX # (do f <- hInc # cCatchX unit; f 8)
+-- output:  right ("fail", 11)
 
 -- ### Running with catch as a scoped operation
 
 -- global update semantics
 RUN do f <- hInc # (hExcept # cCatch unit); f 8
+-- output:  (right "fail", 11)
 
 -- local update semantics
 RUN hExcept # (do f <- hInc # cCatch unit; f 8)
+-- output:  right ("fail", 9)
