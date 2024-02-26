@@ -161,6 +161,7 @@ parseComp = (whiteSpace >>) . choice $
   , parseIf
   , parseCase
   , parseOr
+  , parseAnytype
   ]
   ++ map getFunc1Parser builtInFunc1
   ++ map getFunc2Parser builtInFunc2
@@ -307,6 +308,11 @@ parseCase = do
   setState ctx
   return $ Case v x c1 y c2
 
+parseAnytype :: Parser Comp
+parseAnytype = do
+  reserved "anytype"
+  c <- parseComp
+  return $ Anytype c
 
 -- TODO: a lot of other computations
 

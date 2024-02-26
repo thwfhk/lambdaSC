@@ -498,6 +498,14 @@ inferC (Absurd v) = do
   alpha <- freshV
   mu <- freshE
   return (alpha <!> mu, theta2 <^> theta1)
+inferC (Anytype c) = do
+  alpha <- freshV
+  mu <- freshE
+  return (alpha <!> mu, M.empty)
+inferC (Undefined _) = do
+  alpha <- freshV
+  mu <- freshE
+  return (alpha <!> mu, M.empty)
 
 
 inferC (Op l v (y :. c)) = do

@@ -104,6 +104,8 @@ data Comp
   | Update Value Value
   | Newmem Value
   | Absurd Value
+  | Undefined Value
+  | Anytype Comp
   deriving (Show, Eq)
 
 infixr 8 #
@@ -299,6 +301,7 @@ builtInFunc1 =
   , ("fst", Fst)
   , ("snd", Snd)
   , ("absurd", Absurd)
+  , ("undefined", Undefined)
   , ("newmem", Newmem)
   , ("open", Open)
   , ("close", Close)

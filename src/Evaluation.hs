@@ -101,6 +101,9 @@ eval1 (Close (Vflag (Vlist xs))) = return . Return . Vflag . Vlist $ xs
 eval1 (Open  (Vret (Vlist xs)))  = return . Return . Vret  . Vlist $ xs
 eval1 (Open  (Vflag (Vlist xs))) = return . Return . Vret  . Vlist $ xs
 
+eval1 (Anytype c)                = return c
+eval1 (Undefined _)              = error "undefined encountered during evaluation"
+
 -- a little strange, but works
 eval1 c = let c' = mapC id evalV c in
           if c' == c then Nothing else Just c'
@@ -149,6 +152,8 @@ mapC fc fv c = case c of
   Open v -> Open (fv v)
   Newmem v -> Newmem (fv v)
   Absurd v -> Absurd (fv v)
+  Undefined v -> Undefined (fv v)
+  Anytype c -> Anytype (fc c)
   App' vs -> App' (map fv vs)
   -- oth -> oth
 

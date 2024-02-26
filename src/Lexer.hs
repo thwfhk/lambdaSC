@@ -80,6 +80,8 @@ langDef = emptyDef
             , "fst"
             , "snd"
             , "absurd"
+            , "undefined"
+            , "anytype"
             , "case"
             , "of"
             , "read"
