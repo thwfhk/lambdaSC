@@ -1,3 +1,9 @@
+-- # This file contains the examples of non-determinism with once.
+
+----------------------------------------------------------------
+-- ## Handlers
+
+-- full handler for inc
 DEF hInc = handler [\ x . Arr Int ((x, Int) ! mu)]
   { return x   |-> return (\ s . return (x, s))
   , op inc _ k |-> return (\ s . do s1 <- (s + 1); k s1 s1)
@@ -7,6 +13,7 @@ DEF hInc = handler [\ x . Arr Int ((x, Int) ! mu)]
     ))
   }
 
+-- auxiliary function
 REC concatMap = \ bs . return (
   \ f . do e <- bs == [];
            if e then return []
@@ -17,6 +24,7 @@ REC concatMap = \ bs . return (
                 as ++ as'
   )
 
+-- full handler for nondeterminism with once
 DEF hOnce = handler [\ x . List x]
   { return x      |-> return [x]
   , op fail _ _   |-> return []
@@ -25,6 +33,7 @@ DEF hOnce = handler [\ x . List x]
   , fwd f p k |-> f (p, \ z . concatMap z k)
   }
 
+-- full handler for only nondeterminism
 DEF hND = handler [\ x . List x]
   { return x      |-> return [x]
   , op choose _ k |-> do xs <- k true; do ys <- k false ; xs ++ ys
@@ -32,10 +41,9 @@ DEF hND = handler [\ x . List x]
   }
 
 ----------------------------------------------------------------
+-- ## Running
 
--- Examples from Section 5 (also appearing in Section 2 and Section 3)
-RUN hND # op choose unit (b . if b then return 1 else return 2)
-
+-- Example in Section 2.1.5
 RUN hND # (do f <- hInc # (
   op choose unit (b . if b then op inc unit (x . x+5)
                            else op inc unit (y . y+2))

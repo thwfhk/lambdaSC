@@ -32,6 +32,7 @@ DEF cLocalX = \ _ .
 ----------------------------------------------------------------
 -- ## Local as a scoped effect
 
+-- handler for ask and lread (called local in the paper)
 DEF hRead = handler [\ x . Arr Int (x ! mu)]
   { return x        |-> return (\ s . return x)
   , op ask _ k      |-> return (\ s . k s s)
@@ -55,14 +56,12 @@ DEF cLocal = \ _ .
     ) (t . return t)
 
 ----------------------------------------------------------------
--- ## Test the evaluation results
+-- ## Running
 
--- ### Running with catch as a handler
-
+-- running with catch as a handler
 RUN do c <- hReadX # (hFoo # (cLocalX unit)); c 1
 -- output:  (1, (1, (2, 1)))
 
--- ### Running with catch as a scoped operation
-
+-- running with catch as a scoped operation
 RUN do c <- hRead # (hFoo # (cLocal unit)); c 1
 -- output:  (1, (1, (2, 2)))

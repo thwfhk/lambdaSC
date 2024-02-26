@@ -1,3 +1,9 @@
+-- # This file contains the examples in Section 9.5.
+
+----------------------------------------------------------------
+-- ## Handlers
+
+-- we need the handler hCut here
 DEF hCut = handler [\ x . CutList x]
   {  return x      |->  return (opened [x])
   ,  op fail _ _   |->  return (opened [])
@@ -9,6 +15,7 @@ DEF hCut = handler [\ x . CutList x]
   ,  fwd f p k |-> f (p, \ z . concatMapCutList z k)
   }
 
+-- handler for token
 DEF hToken = handler [\ x . Arr (List Char) ((x, List Char) ! <fail | mu>)]
   { return x     |->  return (\ s .  return (x, s))
   , op token x k |->  return (\ s .
@@ -23,6 +30,9 @@ DEF hToken = handler [\ x . Arr (List Char) ((x, List Char) ! <fail | mu>)]
       \ zs . do z <- fst zs; do s' <- snd zs; k z s'
     ))
   }
+
+----------------------------------------------------------------
+-- ## Parser combinators
 
 REC many1 = \ p . do a <- p unit; do as <- or (many1 p) (return []); cons a as
 
@@ -40,6 +50,8 @@ DEF digit = \ _ .
 
 -- Because the interpreter does not support mutual recursion, we define
 -- expr, term, and factor together.
+
+-- The naive version of expr
 REC exprAll = \ index .
   do b <- index == 1; if b then
           or  (do i <- exprAll 2; do _ <- op token '+'; do j <- exprAll 1; i+j)
@@ -63,7 +75,13 @@ REC exprAll' = \ index .
      else or  (do ds <- many1 digit; read ds)
               (do _ <- op token '('; do i <- exprAll' 1; do _ <- op token ')'; return i)
 
+----------------------------------------------------------------
+-- ## Running
 
--- RUN hCut # (do f <- hToken # exprAll 1; f "(2+5)*8")
+-- run the naive version
+RUN hCut # (do f <- hToken # exprAll 1; f "(2+5)*8")
+-- output:  opened [(56, []), (7, "*8")]
 
+-- run the improved version
 RUN hCut # (do f <- hToken # exprAll' 1; f "(2+5)*8")
+-- output:  opened [(56, [])]

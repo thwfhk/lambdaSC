@@ -61,7 +61,7 @@ DEF cCatch = \ _ .
                            else return "fail")
 
 ----------------------------------------------------------------
--- ## Test the evaluation results
+-- ## Running
 
 -- ### Running with catch as a handler
 

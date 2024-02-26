@@ -54,14 +54,14 @@ There are three main directories:
   - `PrettyPrinter.hs` : pretty printer
 - `app` : main program
   - `Main.hs` : the main program for running the interpreter
-- `test` : 𝝺sc example codes
+- `test` : 𝝺sc examples
   - `intro.sc` : an introduction file to the syntax (the syntax supported by the interpreter is slightly different from the paper)
   - `once.sc` : nondeterminism with `Once` (paper Section 3 and 5)
-  - `catch.sc` : exceptions (paper Section 7.1)
-  - `localread.sc` : reader with local (paper Section 7.2)
-  - `cut.sc` :  nondeterminism with `Cut` (paper Section 7.3)
-  - `depth.sc` : depth-Bounded Search (paper Section 7.4)
-  - `parser.sc` : parser (paper Section 7.5)
+  - `exceptions.sc` : exceptions (paper Section 9.1)
+  - `localread.sc` : reader with local (paper Section 9.2)
+  - `cut.sc` :  nondeterminism with `Cut` (paper Section 9.3)
+  - `depth.sc` : depth-Bounded Search (paper Section 9.4)
+  - `parser.sc` : parser (paper Section 9.5)
   - `local.sc` : local state (bonus)
 
 ## Evaluating the Artifact
@@ -70,3 +70,11 @@ We propose to evaluate the artifact by running `stack exec
 lambdaSC-exe inputFileName` and replacing `inputFileName` with each
 file name in the `test` directory. This will show the results of all
 the examples relevant to scoped effects appearing in the paper.
+
+## Correspondence between Examples in the Paper and Tests
+
+- `test/exceptions.sc` contains the examples in Section 9.1 including catch as a handler and catch as a scoped effect
+- `test/localread.sc` contains the examples in Section 9.2 including local as a handler and local as a scoped effect
+- `test/cut.sc` contains the examples in Section 9.3
+- `test/depth.sc` contains the examples in Section 9.4
+- `test/parser.sc` contains the examples in Section 9.5

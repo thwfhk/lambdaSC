@@ -1,3 +1,7 @@
+-- # This file implements local state in Section 7.1 of paper
+--     Maciej Piróg, Tom Schrijvers, Nicolas Wu, Mauro Jaskelioff:
+--     Syntax and Semantics for Operations with Scopes. LICS 2018
+
 DEF hState = handler [\ x . Arr (Mem String Int) ((x, Mem String Int) ! mu)]
   { return x        |-> return (\ m . return (x, m))
   , op get x k      |-> return (\ m . do v <- retrieve x m; k v m)
@@ -20,9 +24,10 @@ DEF hState = handler [\ x . Arr (Mem String Int) ((x, Mem String Int) ! mu)]
 RUN do m <- newmem unit;
     do f <- hState # (
       do _ <- op put ("x", 10);
-      do x1 <- sc local ("x", 42) (_ . op get "x");
+      do x1 <- sc local ("x", 42) (_ . op get "x"); -- create a local x
       do x2 <- op get "x";
       return (x1, x2)
     );
     do x <- f m;
     fst x
+-- output:  (42, 10)
