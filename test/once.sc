@@ -1,4 +1,5 @@
 -- # This file contains the examples of non-determinism with once.
+-- Part of them appear in the Section 2 and 3 of the paper.
 
 ----------------------------------------------------------------
 -- ## Handlers
@@ -40,21 +41,36 @@ DEF hND = handler [\ x . List x]
   , fwd f p k |-> f (p, \ z . concatMap z k)
   }
 
-----------------------------------------------------------------
--- ## Running
-
 -- Example in Section 2.1.5
-RUN hND # (do f <- hInc # (
+DEF cInc = \ _ .
   op choose unit (b . if b then op inc unit (x . x+5)
                            else op inc unit (y . y+2))
-); f 0)
 
-RUN hOnce #
+-- Example in Section 3.1
+DEF cOnce = \ _ .
   sc once unit (_ . op choose unit)
                (p . do q <- op choose unit; return (p, q))
 
+----------------------------------------------------------------
+-- ## Running
 
--- Interaction of inc and once:
+
+-- ### Runnining the example in Section 2.1.5
+
+-- first hInc then hND
+RUN hND # (do f <- hInc # (cInc unit); f 0)
+-- output:  [(6, 1), (3, 1)]
+
+-- first hND then hInc
+RUN do f <- hInc # (hND # (cInc unit)); f 0
+-- output:  ([6, 4], 2)
+
+-- ### Runnining the example in Section 3.1
+RUN hOnce # cOnce unit
+-- output:  [(true, true), (true, false)]
+
+-- ### Running some other examples
+
 RUN hOnce # (do f <- hInc # (
   op choose unit (b . if b then op inc unit else op inc unit)
 ); f 0)

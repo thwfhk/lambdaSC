@@ -2,13 +2,13 @@
 DEF f = \ x . x + 1
 
 -- Define recursive functions using the keyword REC
-REC g = \ x . do b <- x == 0; 
+REC g = \ x . do b <- x == 0;
                  if b then return 0
-                      else do x' <- x - 1;
-                           do s <- g x';
-                           x + s
+                 else do x' <- x - 1;
+                      do s <- g x';
+                      x + s
 
--- The auxiliary function `concatMap` used by the handler `hND`
+-- For example, we can define `concatMap` as follows
 REC concatMap = \ bs . return (
   \ f . do e <- bs == [];
            if e then return []
@@ -20,7 +20,7 @@ REC concatMap = \ bs . return (
   )
 
 -- The handler `hND` for non-determinism
--- The type annotation of the handler used by the type inference appears in the brackets
+-- The carrier of the handler is annotated in brackets
 DEF hND = handler [\ x . List x]
   { return x      |-> return [x]
   , op fail _ _   |-> return []
@@ -34,16 +34,14 @@ DEF hND = handler [\ x . List x]
 -- variables, and we use `|` to seperate the row type variable from other labels.
 ----------------------------------------------------------------
 
--- RUN a computation using the keyword RUN
+-- Run a computation using the keyword RUN
 -- Note that all RUN statements must appear after all DEF and REC statements
 RUN g 5
 
--- Apply the handler `hND` to a non-deterministic computation
+-- Apply the handler `hND` to a non-deterministic computation using #
 RUN hND # op choose unit (b . if b then return "heads" else return "tails")
 
-
--- You can also directly write the definition of the handler in the computation
--- instead of defining it first
+-- You can also directly write the definition of the handler instead of defining it first
 RUN handler [\ x . List x]
   { return x      |-> return [x]
   , op fail _ _   |-> return []

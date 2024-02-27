@@ -2,25 +2,25 @@
 
 This is a simple interpreter for $\lambda_{sc}$, a calculus for scoped effects & handlers.
 
-The interpreter supports parsing, type inference, and evaluation.
+The interpreter supports parsing, type inference, evaluation, and printing.
 
 ## Getting Started
 
-Make sure you have [stack](https://docs.haskellstack.org/en/stable/README/) installed for your device.
+Make sure you have [stack](https://docs.haskellstack.org/en/stable/README/) installed.
 
-Build the project:
+Build the interpreter:
 
 ```
 stack build
 ```
 
-Run the interpreter using the following command:
+Run the interpreter with a given file using the following command:
 
 ```
 stack exec lambdaSC-exe inputFileName
 ```
 
-For example, `stack exec lambdaSC-exe test/once.sc` gives the following output:
+For example, running `stack exec lambdaSC-exe test/intro.sc` gives the following output:
 
 ```
 [PARSE SUCCESS 🥳]:
@@ -56,23 +56,23 @@ There are three main directories:
   - `Main.hs` : the main program for running the interpreter
 - `test` : 𝝺sc examples
   - `intro.sc` : an introduction file to the syntax (the syntax supported by the interpreter is slightly different from the paper)
-  - `once.sc` : nondeterminism with `Once` (paper Section 3 and 5)
+  - `once.sc` : nondeterminism with `once` (paper Section 2 and 3)
+  - `inc.sc` : forwarding for the handler of `inc` (paper Section 7)
   - `exceptions.sc` : exceptions (paper Section 9.1)
   - `localread.sc` : reader with local (paper Section 9.2)
-  - `cut.sc` :  nondeterminism with `Cut` (paper Section 9.3)
+  - `cut.sc` :  nondeterminism with `cut` (paper Section 9.3)
   - `depth.sc` : depth-Bounded Search (paper Section 9.4)
   - `parser.sc` : parser (paper Section 9.5)
-  - `local.sc` : local state (bonus)
+  - `localstate.sc` : local state
 
 ## Evaluating the Artifact
 
-We propose to evaluate the artifact by running `stack exec
-lambdaSC-exe inputFileName` and replacing `inputFileName` with each
-file name in the `test` directory. This will show the results of all
-the examples relevant to scoped effects appearing in the paper.
+We propose to evaluate the artifact by running `stack exec lambdaSC-exe inputFileName` and replacing `inputFileName` with each file name in the `test` directory. This will show the results of all non-trivial examples appearing in the paper.
 
-## Correspondence between Examples in the Paper and Tests
+The correspondence between examples in the paper and test files is shown as follows:
 
+- `test/once.sc` contains some examples in Section 2 and 3 that use non-determinism and `once`.
+- `test/inc.sc` contains the examples in Section 7 including both the problematic and correct implementations of forwarding for the handler of `inc`
 - `test/exceptions.sc` contains the examples in Section 9.1 including catch as a handler and catch as a scoped effect
 - `test/localread.sc` contains the examples in Section 9.2 including local as a handler and local as a scoped effect
 - `test/cut.sc` contains the examples in Section 9.3
