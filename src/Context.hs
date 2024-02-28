@@ -23,6 +23,7 @@ sigma =
   [ ("choose", (TUnit, TBool))
   , ("fail", (TUnit, TEmpty))
   , ("once", (TUnit, TUnit))
+  , ("twice", (TUnit, TUnit))
   , ("raise", (tString, TEmpty))
   , ("catch", (tString, TBool))
   , ("inc", (TUnit, TInt))
@@ -52,6 +53,7 @@ isOp "inc"    = True
 isOp "catch"  = False
 isOp "raise"  = True
 isOp "once"   = False
+isOp "twice"   = False
 isOp "fail"   = True
 isOp "choose" = True
 isOp "ask"    = True

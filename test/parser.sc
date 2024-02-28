@@ -47,6 +47,8 @@ DEF digit = \ _ .
   or (op token '7') (
   or (op token '8') (op token '9')
     ))))))))
+-- `or c1 c2` is a built-in syntactic sugar for
+-- `op choose unit (b . if b then c1 else c2)`
 
 -- Because the interpreter does not support mutual recursion, we define
 -- expr, term, and factor together.
